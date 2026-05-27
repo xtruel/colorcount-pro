@@ -264,9 +264,13 @@ input[type=range]::-moz-range-thumb{width:28px;height:28px;border-radius:50%;bac
         <input type="range" id="res" min="200" max="1500" step="50" value="500">
       </div>
       <div class="slider-row">
-        <label>Unisci regioni vicine <span id="mergeVal">3</span></label>
-        <input type="range" id="merge" min="0" max="10" step="1" value="3">
+        <label>Unisci regioni vicine <span id="mergeVal">1</span></label>
+        <input type="range" id="merge" min="0" max="10" step="1" value="1">
       </div>
+      <label class="toggle-row" style="display:flex;align-items:center;justify-content:space-between;font-size:13px;color:var(--label-2);font-weight:500;padding:6px 2px 0;cursor:pointer">
+        <span>Stima oggetti raggruppati <small style="display:block;color:var(--label-3);font-weight:400;margin-top:2px">Conta più oggetti per blob esteso</small></span>
+        <input type="checkbox" id="groupChk" checked style="width:44px;height:26px;cursor:pointer;accent-color:var(--green)">
+      </label>
     </div>
   </div>
 
@@ -380,7 +384,7 @@ function classifyPixel(r,g,b, sens){
 /* =========================================================
    CONNECTED COMPONENTS  (union-find, 4-connectivity)
    ========================================================= */
-function countObjects(labels, W, H, minSize){
+function countObjects(labels, W, H, minSize, estimateGroups){
   const N = W*H;
   const parent = new Int32Array(N);
   for(let i=0;i<N;i++) parent[i] = i;
@@ -423,18 +427,33 @@ function countObjects(labels, W, H, minSize){
     }
   }
 
+  // ----- Estimate unit area: the typical size of one single object -----
+  // We look at the distribution of component areas and take the 25th percentile
+  // as "one object". Bigger blobs are presumed to contain multiple touching objects.
+  const validAreas = [];
+  for(const [r,sz] of compSize){ if(sz >= minSize) validAreas.push(sz); }
+  let unitArea = minSize;
+  if(estimateGroups && validAreas.length >= 3){
+    validAreas.sort((a,b)=>a-b);
+    // 25th percentile, clamped to at least minSize
+    unitArea = Math.max(minSize, validAreas[Math.floor(validAreas.length * 0.25)]);
+  }
+
   const counts = new Array(COLORS.length).fill(0);
-  const centroids = Array.from({length:COLORS.length}, ()=>[]);  // per color: [{x,y,size}]
+  const centroids = Array.from({length:COLORS.length}, ()=>[]);  // per color: [{x,y,size,n}]
   const validRoots = new Set();
   for(const [r,sz] of compSize){
     if(sz >= minSize){
       const ci = compColor.get(r);
-      counts[ci]++;
+      // Estimated count contained in this blob (1 if not grouped or solo, more if blob is much larger than unitArea)
+      const n = estimateGroups ? Math.max(1, Math.round(sz / unitArea)) : 1;
+      counts[ci] += n;
       validRoots.add(r);
       centroids[ci].push({
         x: compSumX.get(r) / sz,
         y: compSumY.get(r) / sz,
-        size: sz
+        size: sz,
+        n
       });
     }
   }
@@ -768,8 +787,9 @@ function runAnalysis(){
   const mergeIters = +$('merge').value;
   dilateLabels(labels, W, H, mergeIters);
 
-  // ---- 5) Connected components + centroids ----
-  const { counts, mask, centroids } = countObjects(labels, W, H, minSize);
+  // ---- 5) Connected components + centroids (with group-size estimation) ----
+  const estimateGroups = $('groupChk').checked;
+  const { counts, mask, centroids } = countObjects(labels, W, H, minSize, estimateGroups);
   lastCounts = counts;
 
   lastAnalysis = { counts, mask, centroids, W, H, sw, sh, snapshot: snap };
@@ -822,19 +842,23 @@ function repaintOverlay(){
     list.forEach((pt, idx) => {
       const x = pt.x * scaleX;
       const y = pt.y * scaleY;
+      const isGroup = (pt.n || 1) > 1;
+      const r = isGroup ? baseR * 1.25 : baseR;   // bigger marker for groups
       // outer white halo
       octx.beginPath();
-      octx.arc(x, y, baseR + 2, 0, Math.PI*2);
+      octx.arc(x, y, r + 2, 0, Math.PI*2);
       octx.fillStyle = 'rgba(255,255,255,0.95)';
       octx.fill();
       // colored fill
       octx.beginPath();
-      octx.arc(x, y, baseR, 0, Math.PI*2);
+      octx.arc(x, y, r, 0, Math.PI*2);
       octx.fillStyle = c.hex;
       octx.fill();
-      // number
+      // number: show estimated count for groups, sequence for singles
+      const label = isGroup ? ('×' + pt.n) : String(idx+1);
+      octx.font = `bold ${Math.round(r * (isGroup ? 0.95 : 1.15))}px -apple-system, "SF Pro Display", sans-serif`;
       octx.fillStyle = '#fff';
-      octx.fillText(String(idx+1), x, y + baseR*0.05);
+      octx.fillText(label, x, y + r*0.05);
     });
   }
 }
