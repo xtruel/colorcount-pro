@@ -625,23 +625,28 @@ function enhanceImage(canvas){
   ctx.putImageData(img, 0, 0);
 }
 
-/* Fill small WHITE/BLACK holes inside colored regions.
-   Specular highlights on shiny balls get classified as White and split a
-   single ball into several arcs, producing multiple peaks per ball.
-   Underside shadows do the same with Black. We flood-fill each white/black
-   connected component and, if it is small AND surrounded mostly by one
-   color, we reassign it to that color. */
+/* Fill small holes inside colored regions.
+   Three sources of "holes" that fragment a single object into multiple peaks:
+     1. Specular highlights → classified as White
+     2. Underside shadows   → classified as Black
+     3. Sfumature edge      → classified as nothing (-1), e.g. gradients near borders
+   For each kind we flood-fill the hole, and if it is small AND its boundary is
+   dominated by a single chromatic color we reassign the hole to that color.
+   The image background is too large to qualify and is left alone. */
 function fillAchromaticHoles(labels, W, H){
   const N = W*H;
-  const maxHoleSize = Math.max(800, Math.round(N * 0.012));  // up to ~1.2% of image
+  const maxHoleSize = Math.max(2000, Math.round(N * 0.030)); // up to ~3% of image
   const visited = new Uint8Array(N);
   const boundary = new Int32Array(COLORS.length);
   const stack = [];
 
-  function processColor(targetIdx){
+  function processTarget(target){  // target: -1 means "unlabeled"; otherwise a color index
     visited.fill(0);
     for(let start=0; start<N; start++){
-      if(visited[start] || labels[start] !== targetIdx) continue;
+      if(visited[start]) continue;
+      const sv = labels[start];
+      const isTarget = (target === -1) ? (sv < 0) : (sv === target);
+      if(!isTarget) continue;
 
       stack.length = 0;
       stack.push(start);
@@ -657,39 +662,30 @@ function fillAchromaticHoles(labels, W, H){
 
         const x = i % W;
         const y = (i / W) | 0;
-        const ns = [];
-        if(x > 0)   ns.push(i-1);
-        if(x < W-1) ns.push(i+1);
-        if(y > 0)   ns.push(i-W);
-        if(y < H-1) ns.push(i+W);
-
-        for(let k=0; k<ns.length; k++){
-          const j = ns[k];
-          const lv = labels[j];
-          if(lv === targetIdx){
-            if(!visited[j]){ visited[j] = 1; stack.push(j); }
-          } else if(lv >= 0){
-            boundary[lv]++;
-          }
-        }
+        let n;
+        if(x > 0)   { n = i-1;  const lv=labels[n]; const t=(target===-1)?(lv<0):(lv===target); if(t){ if(!visited[n]){visited[n]=1; stack.push(n);} } else if(lv>=0 && lv!==WHITE_IDX && lv!==BLACK_IDX) boundary[lv]++; }
+        if(x < W-1) { n = i+1;  const lv=labels[n]; const t=(target===-1)?(lv<0):(lv===target); if(t){ if(!visited[n]){visited[n]=1; stack.push(n);} } else if(lv>=0 && lv!==WHITE_IDX && lv!==BLACK_IDX) boundary[lv]++; }
+        if(y > 0)   { n = i-W;  const lv=labels[n]; const t=(target===-1)?(lv<0):(lv===target); if(t){ if(!visited[n]){visited[n]=1; stack.push(n);} } else if(lv>=0 && lv!==WHITE_IDX && lv!==BLACK_IDX) boundary[lv]++; }
+        if(y < H-1) { n = i+W;  const lv=labels[n]; const t=(target===-1)?(lv<0):(lv===target); if(t){ if(!visited[n]){visited[n]=1; stack.push(n);} } else if(lv>=0 && lv!==WHITE_IDX && lv!==BLACK_IDX) boundary[lv]++; }
       }
       if(tooBig) continue;
 
-      // Find dominant boundary color
+      // Find dominant chromatic boundary color
       let bestC = -1, bestN = 0, total = 0;
       for(let c=0; c<COLORS.length; c++){
-        if(c === targetIdx) continue;
+        if(c === WHITE_IDX || c === BLACK_IDX) continue;
         total += boundary[c];
         if(boundary[c] > bestN){ bestN = boundary[c]; bestC = c; }
       }
       if(total < 6) continue;
-      if(bestN / total < 0.55) continue;  // not dominated by one color
+      if(bestN / total < 0.45) continue;
 
       for(let ci=0; ci<comp.length; ci++) labels[comp[ci]] = bestC;
     }
   }
-  processColor(WHITE_IDX);
-  processColor(BLACK_IDX);
+  processTarget(WHITE_IDX);
+  processTarget(BLACK_IDX);
+  processTarget(-1);  // gradient/sfumature pixels rejected during classification
 }
 
 /* Morphological dilation on the label map — fills small gaps so that
@@ -940,7 +936,8 @@ function runAnalysis(){
   const img = wctx.getImageData(0, 0, W, H);
   const data = img.data;
 
-  // ---- 3) Denoise: 3x3 box blur kills single-pixel false positives ----
+  // ---- 3) Denoise: two 3x3 blurs ≈ 5x5 smoothing kills highlights/texture/noise ----
+  boxBlur(data, W, H);
   boxBlur(data, W, H);
 
   // ---- 4) Classify ----
