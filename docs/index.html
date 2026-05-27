@@ -542,22 +542,29 @@ function countObjects(labels, W, H, minSize, estimateGroups){
   }
 
   // ----- Watershed mode: distance transform + local maxima -----
-  // 1) Estimate the typical radius of a single object
-  validAreas.sort((a,b)=>a-b);
-  const smallA = validAreas[Math.floor(validAreas.length * 0.20)] || validAreas[0] || minSize;
-  // Estimated single-object radius (pixels) from area = π r²
-  let typR = Math.sqrt(smallA / Math.PI) * 0.90;
-  if(!isFinite(typR) || typR < 3) typR = 3;
-  const minDist   = Math.max(3, typR * 1.4);  // min separation between two peak centers
-  const minRadius = Math.max(2, typR * 0.45); // peak must be at least this far from edge
-
-  // 2) Per color: distance transform → find local maxima = object centers
+  // For each color we compute the DT, then derive the ball radius from the
+  // MAX DT value of that color (= radius of largest circle inscribable in the
+  // color region). For touching balls of equal size that max equals the ball
+  // radius regardless of how many balls touch. This is self-calibrating per
+  // color and avoids the area-based mis-estimation that produced double-counts.
   const colorPresent = new Uint8Array(COLORS.length);
   for(let i=0;i<N;i++){ const m = mask[i]; if(m>=0) colorPresent[m] = 1; }
 
   for(let c=0; c<COLORS.length; c++){
     if(!colorPresent[c]) continue;
     const dt = distanceTransformInside(mask, W, H, c);
+
+    // Find max DT for this color
+    let maxD = 0;
+    for(let i=0;i<N;i++){ if(dt[i] > maxD) maxD = dt[i]; }
+    if(maxD < 2.5){ continue; } // region too thin → noise
+
+    // Self-calibrated thresholds (per color)
+    // - minDist 1.5 × radius → centers of two touching balls (2R apart) easily pass
+    // - minRadius 0.55 × radius → peak must be near the center of a ball
+    const minDist   = maxD * 1.5;
+    const minRadius = maxD * 0.55;
+
     const peaks = findPeaks(dt, mask, W, H, c, minDist, minRadius);
     counts[c] = peaks.length;
     centroids[c] = peaks.map(p => ({
