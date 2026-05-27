@@ -189,21 +189,7 @@ input[type=range]::-moz-range-thumb{width:28px;height:28px;border-radius:50%;bac
   .k{min-height:44px;font-size:18px}
   .k.op{font-size:20px}
 }
-@media (prefers-color-scheme: dark){
-  :root{
-    --bg:#000000;
-    --card:#1c1c1e;
-    --card-2:#2c2c2e;
-    --sep:rgba(84,84,88,0.32);
-    --sep-strong:rgba(84,84,88,0.50);
-    --label:#ffffff;
-    --label-2:rgba(235,235,245,0.60);
-    --label-3:rgba(235,235,245,0.30);
-    --gray-fill:rgba(118,118,128,0.24);
-    --gray-fill-2:rgba(118,118,128,0.36);
-  }
-  .k{box-shadow:none}
-}
+/* Light theme forced — no dark mode override */
 </style>
 </head>
 <body>
@@ -268,8 +254,8 @@ input[type=range]::-moz-range-thumb{width:28px;height:28px;border-radius:50%;bac
         <input type="range" id="sens" min="0.5" max="1.5" step="0.05" value="1.0">
       </div>
       <div class="slider-row">
-        <label>Dimensione minima oggetto <span id="minSizeVal">25 px</span></label>
-        <input type="range" id="minSize" min="5" max="500" step="5" value="25">
+        <label>Dimensione minima oggetto <span id="minSizeVal">80 px</span></label>
+        <input type="range" id="minSize" min="5" max="800" step="5" value="80">
       </div>
       <div class="slider-row">
         <label>Risoluzione analisi <span id="resVal">500 px</span></label>
@@ -336,14 +322,14 @@ $('aboutBtn').addEventListener('click', () => {
    COLOR CLASSIFICATION
    ========================================================= */
 const COLORS = [
-  {name:'red',    label:'Rosso',   var:'R', hex:'#e53935', ranges:[[0,15],[345,360]], sMin:0.35, lMin:0.18, lMax:0.82},
-  {name:'orange', label:'Arancio', var:'O', hex:'#fb8c00', ranges:[[16,42]],          sMin:0.40, lMin:0.22, lMax:0.82},
-  {name:'yellow', label:'Giallo',  var:'Y', hex:'#fdd835', ranges:[[43,68]],          sMin:0.35, lMin:0.30, lMax:0.88},
-  {name:'green',  label:'Verde',   var:'G', hex:'#43a047', ranges:[[69,165]],         sMin:0.25, lMin:0.15, lMax:0.82},
-  {name:'cyan',   label:'Ciano',   var:'C', hex:'#00acc1', ranges:[[166,195]],        sMin:0.25, lMin:0.20, lMax:0.82},
-  {name:'blue',   label:'Blu',     var:'B', hex:'#1e88e5', ranges:[[196,255]],        sMin:0.25, lMin:0.18, lMax:0.82},
-  {name:'purple', label:'Viola',   var:'P', hex:'#8e24aa', ranges:[[256,315]],        sMin:0.25, lMin:0.18, lMax:0.78},
-  {name:'pink',   label:'Rosa',    var:'K', hex:'#ec407a', ranges:[[316,344]],        sMin:0.25, lMin:0.30, lMax:0.85}
+  {name:'red',    label:'Rosso',   var:'R', hex:'#e53935', ranges:[[0,12],[348,360]], sMin:0.50, lMin:0.25, lMax:0.78},
+  {name:'orange', label:'Arancio', var:'O', hex:'#fb8c00', ranges:[[13,42]],          sMin:0.55, lMin:0.30, lMax:0.80},
+  {name:'yellow', label:'Giallo',  var:'Y', hex:'#fdd835', ranges:[[43,68]],          sMin:0.50, lMin:0.40, lMax:0.88},
+  {name:'green',  label:'Verde',   var:'G', hex:'#43a047', ranges:[[69,165]],         sMin:0.38, lMin:0.20, lMax:0.78},
+  {name:'cyan',   label:'Ciano',   var:'C', hex:'#00acc1', ranges:[[166,195]],        sMin:0.40, lMin:0.28, lMax:0.80},
+  {name:'blue',   label:'Blu',     var:'B', hex:'#1e88e5', ranges:[[196,250]],        sMin:0.45, lMin:0.30, lMax:0.78},
+  {name:'purple', label:'Viola',   var:'P', hex:'#8e24aa', ranges:[[251,310]],        sMin:0.38, lMin:0.25, lMax:0.75},
+  {name:'pink',   label:'Rosa',    var:'K', hex:'#ec407a', ranges:[[311,347]],        sMin:0.40, lMin:0.40, lMax:0.85}
 ];
 const COLOR_MAP = Object.fromEntries(COLORS.map(c=>[c.name,c]));
 
@@ -364,9 +350,10 @@ function rgbToHsl(r,g,b){
 
 function classifyPixel(r,g,b, sens){
   const [h,s,l] = rgbToHsl(r,g,b);
-  if(l < 0.10) return -1;
-  if(l > 0.93 && s < 0.18) return -1;
-  if(s < 0.13 * sens) return -1;
+  // Reject blacks, near-whites, and weakly saturated pixels (skin, beige, gray, shadows)
+  if(l < 0.15) return -1;
+  if(l > 0.92 && s < 0.22) return -1;
+  if(s < 0.28 * sens) return -1;  // slider higher = stricter (matches per-color thresholds)
   for(let i=0;i<COLORS.length;i++){
     const c = COLORS[i];
     if(s < c.sMin * sens) continue;
@@ -449,6 +436,93 @@ function countObjects(labels, W, H, minSize){
   }
 
   return { counts, mask, centroids, components: validRoots.size };
+}
+
+/* =========================================================
+   IMAGE ENHANCEMENT  (auto white-balance + auto-contrast)
+   Applied once to the captured snapshot so the user sees a
+   cleaner image AND the analysis gets better color separation.
+   ========================================================= */
+function enhanceImage(canvas){
+  const ctx = canvas.getContext('2d', { willReadFrequently:true });
+  const W = canvas.width, H = canvas.height;
+  if(W < 4 || H < 4) return;
+  const img = ctx.getImageData(0, 0, W, H);
+  const data = img.data;
+  const N = data.length >> 2;
+
+  // ----- Gray-world white balance (mild) -----
+  let sumR=0, sumG=0, sumB=0;
+  for(let i=0; i<data.length; i+=4){ sumR+=data[i]; sumG+=data[i+1]; sumB+=data[i+2]; }
+  const avgR=sumR/N, avgG=sumG/N, avgB=sumB/N;
+  const avg=(avgR+avgG+avgB)/3;
+  const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+  const sR = clamp(avg/Math.max(1,avgR), 0.80, 1.25);
+  const sG = clamp(avg/Math.max(1,avgG), 0.80, 1.25);
+  const sB = clamp(avg/Math.max(1,avgB), 0.80, 1.25);
+
+  // ----- Auto-contrast: 1st/99th percentile per channel (after WB) -----
+  const histR=new Uint32Array(256), histG=new Uint32Array(256), histB=new Uint32Array(256);
+  for(let i=0; i<data.length; i+=4){
+    histR[Math.min(255, Math.round(data[i]   * sR))]++;
+    histG[Math.min(255, Math.round(data[i+1] * sG))]++;
+    histB[Math.min(255, Math.round(data[i+2] * sB))]++;
+  }
+  function percent(hist, frac){
+    const target = N * frac;
+    let cum=0, lo=0, hi=255;
+    for(let v=0; v<256; v++){ cum+=hist[v]; if(cum>=target){ lo=v; break; } }
+    cum=0;
+    for(let v=255; v>=0; v--){ cum+=hist[v]; if(cum>=target){ hi=v; break; } }
+    return [lo, hi];
+  }
+  const [loR,hiR]=percent(histR, 0.004);
+  const [loG,hiG]=percent(histG, 0.004);
+  const [loB,hiB]=percent(histB, 0.004);
+  const rangeR = Math.max(40, hiR-loR);
+  const rangeG = Math.max(40, hiG-loG);
+  const rangeB = Math.max(40, hiB-loB);
+
+  // Apply WB + stretch in one pass
+  for(let i=0; i<data.length; i+=4){
+    const r = data[i]   * sR;
+    const g = data[i+1] * sG;
+    const b = data[i+2] * sB;
+    data[i]   = clamp((r - loR) * 255 / rangeR, 0, 255);
+    data[i+1] = clamp((g - loG) * 255 / rangeG, 0, 255);
+    data[i+2] = clamp((b - loB) * 255 / rangeB, 0, 255);
+  }
+  ctx.putImageData(img, 0, 0);
+}
+
+/* 3x3 box blur for noise reduction (kills single-pixel false positives) */
+function boxBlur(data, W, H){
+  const tmp = new Uint8ClampedArray(data.length);
+  // Horizontal pass
+  for(let y=0; y<H; y++){
+    for(let x=0; x<W; x++){
+      const x0 = x>0 ? x-1 : x;
+      const x1 = x<W-1 ? x+1 : x;
+      const i0 = (y*W+x0)*4, i1=(y*W+x)*4, i2=(y*W+x1)*4;
+      const o = (y*W+x)*4;
+      tmp[o]   = (data[i0]   + data[i1]   + data[i2])   / 3;
+      tmp[o+1] = (data[i0+1] + data[i1+1] + data[i2+1]) / 3;
+      tmp[o+2] = (data[i0+2] + data[i1+2] + data[i2+2]) / 3;
+      tmp[o+3] = 255;
+    }
+  }
+  // Vertical pass back into data
+  for(let y=0; y<H; y++){
+    const y0 = y>0 ? y-1 : y;
+    const y1 = y<H-1 ? y+1 : y;
+    for(let x=0; x<W; x++){
+      const i0 = (y0*W+x)*4, i1=(y*W+x)*4, i2=(y1*W+x)*4;
+      const o = (y*W+x)*4;
+      data[o]   = (tmp[i0]   + tmp[i1]   + tmp[i2])   / 3;
+      data[o+1] = (tmp[i0+1] + tmp[i1+1] + tmp[i2+1]) / 3;
+      data[o+2] = (tmp[i0+2] + tmp[i1+2] + tmp[i2+2]) / 3;
+    }
+  }
 }
 
 /* =========================================================
@@ -630,26 +704,32 @@ function runAnalysis(){
   const W = Math.max(50, Math.round(sw * scale));
   const H = Math.max(50, Math.round(sh * scale));
 
+  // ---- 1) Snapshot at full resolution + image enhancement ----
+  // (auto white-balance + auto-contrast → cleaner image, better separation)
+  const snap = document.createElement('canvas');
+  snap.width = sw; snap.height = sh;
+  snap.getContext('2d').drawImage(lastImageSource, 0, 0, sw, sh);
+  enhanceImage(snap);
+
+  // ---- 2) Downscale enhanced snapshot into work canvas for analysis ----
   work.width = W; work.height = H;
   const wctx = work.getContext('2d', { willReadFrequently: true });
-  wctx.drawImage(lastImageSource, 0, 0, W, H);
+  wctx.drawImage(snap, 0, 0, W, H);
   const img = wctx.getImageData(0, 0, W, H);
   const data = img.data;
 
-  // Classify
+  // ---- 3) Denoise: 3x3 box blur kills single-pixel false positives ----
+  boxBlur(data, W, H);
+
+  // ---- 4) Classify ----
   const labels = new Int8Array(W*H);
   for(let i=0;i<W*H;i++){
     labels[i] = classifyPixel(data[i*4], data[i*4+1], data[i*4+2], sens);
   }
 
-  // Components + centroids
+  // ---- 5) Connected components + centroids ----
   const { counts, mask, centroids } = countObjects(labels, W, H, minSize);
   lastCounts = counts;
-
-  // Snapshot the source frame at full resolution so re-paints don't depend on live video
-  const snap = document.createElement('canvas');
-  snap.width = sw; snap.height = sh;
-  snap.getContext('2d').drawImage(lastImageSource, 0, 0, sw, sh);
 
   lastAnalysis = { counts, mask, centroids, W, H, sw, sh, snapshot: snap };
   highlightedColor = -1;
