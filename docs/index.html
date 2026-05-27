@@ -3,110 +3,206 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-<meta name="theme-color" content="#0a0a0f">
+<meta name="theme-color" content="#f2f2f7">
 <meta name="description" content="Conta oggetti per colore dalla fotocamera + calcolatrice scientifica avanzata">
 <title>ColorCount Pro</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='30' cy='30' r='18' fill='%2343a047'/%3E%3Ccircle cx='70' cy='35' r='18' fill='%23e53935'/%3E%3Ccircle cx='35' cy='70' r='18' fill='%23fdd835'/%3E%3Ccircle cx='72' cy='72' r='18' fill='%231e88e5'/%3E%3C/svg%3E">
 <style>
+:root{
+  --bg:#f2f2f7;
+  --card:#ffffff;
+  --card-2:#fafafc;
+  --sep:rgba(60,60,67,0.12);
+  --sep-strong:rgba(60,60,67,0.20);
+  --label:#000000;
+  --label-2:rgba(60,60,67,0.60);
+  --label-3:rgba(60,60,67,0.30);
+  --blue:#007AFF;
+  --blue-dark:#0062CC;
+  --green:#34C759;
+  --red:#FF3B30;
+  --orange:#FF9500;
+  --yellow:#FFCC00;
+  --purple:#AF52DE;
+  --pink:#FF2D55;
+  --gray:#8E8E93;
+  --gray-fill:rgba(118,118,128,0.12);
+  --gray-fill-2:rgba(118,118,128,0.20);
+}
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-html,body{height:100%;overflow:hidden;background:#0a0a0f;color:#e8e8ec;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;user-select:none;-webkit-user-select:none}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--label);
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text","Segoe UI",Roboto,sans-serif;
+  -webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;
+  user-select:none;-webkit-user-select:none;letter-spacing:-0.01em}
 button{font-family:inherit;color:inherit;background:none;border:none;cursor:pointer;outline:none}
 input,canvas,video{display:block}
 
-#app{display:flex;flex-direction:column;height:100vh;height:100dvh;max-width:560px;margin:0 auto;background:#0d0d14}
+#app{display:flex;flex-direction:column;height:100vh;height:100dvh;max-width:560px;margin:0 auto;background:var(--bg);position:relative}
 
-/* Header */
-header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:linear-gradient(135deg,#13131c,#0d0d14);border-bottom:1px solid #1f1f2c}
-.logo{display:flex;align-items:center;gap:10px;font-weight:700;font-size:17px;letter-spacing:.3px}
-.logo-dot{width:22px;height:22px;border-radius:50%;background:conic-gradient(#e53935,#fb8c00,#fdd835,#43a047,#1e88e5,#8e24aa,#e53935);box-shadow:0 0 14px rgba(255,255,255,.15)}
-.badge{font-size:10px;font-weight:600;padding:3px 7px;border-radius:6px;background:#1e88e5;color:#fff;letter-spacing:.5px}
+/* ===== Header (iOS large-title style) ===== */
+header{display:flex;align-items:center;justify-content:space-between;padding:14px 20px 6px;background:var(--bg)}
+.logo{display:flex;align-items:center;gap:10px;font-weight:700;font-size:22px;letter-spacing:-0.5px;color:var(--label)}
+.logo-dot{width:26px;height:26px;border-radius:50%;
+  background:conic-gradient(from 45deg,#FF3B30,#FF9500,#FFCC00,#34C759,#007AFF,#AF52DE,#FF3B30);
+  box-shadow:0 1px 3px rgba(0,0,0,0.08)}
+.logo .pro{font-size:11px;font-weight:600;color:var(--blue);letter-spacing:0.5px;margin-left:2px}
+.icon-btn{width:30px;height:30px;border-radius:50%;background:var(--gray-fill);
+  display:flex;align-items:center;justify-content:center;color:var(--label-2);font-size:15px;font-weight:600;
+  transition:background .15s}
+.icon-btn:active{background:var(--gray-fill-2)}
 
-/* Tabs */
-.tabs{display:flex;background:#0d0d14;border-bottom:1px solid #1f1f2c}
-.tab{flex:1;padding:13px 0;font-size:14px;font-weight:600;color:#6e6e80;border-bottom:2px solid transparent;transition:all .2s}
-.tab.active{color:#fff;border-bottom-color:#1e88e5}
-.tab:active{background:#15151f}
+/* ===== Segmented control (iOS tabs) ===== */
+.tabs{margin:6px 16px 14px;background:var(--gray-fill);border-radius:9px;padding:2px;display:flex;gap:0}
+.tab{flex:1;padding:7px 0;font-size:13px;font-weight:500;color:var(--label);border-radius:7px;
+  transition:all .2s ease;letter-spacing:-0.08px}
+.tab.active{background:var(--card);font-weight:600;
+  box-shadow:0 3px 8px rgba(0,0,0,0.06),0 1px 2px rgba(0,0,0,0.04)}
 
-/* Pages */
-.page{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;display:none}
-.page.active{display:flex;flex-direction:column}
+/* ===== Pages ===== */
+.page{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;display:none;padding:0 16px 24px}
+.page.active{display:flex;flex-direction:column;gap:14px}
 
-/* ---- CAMERA PAGE ---- */
-.viewport{position:relative;aspect-ratio:4/3;background:#000;overflow:hidden}
-.viewport video,.viewport canvas,.viewport img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;image-rendering:auto;-webkit-transform:translateZ(0);transform:translateZ(0);backface-visibility:hidden}
+/* ===== Card (iOS grouped section) ===== */
+.card{background:var(--card);border-radius:14px;overflow:hidden;
+  box-shadow:0 1px 2px rgba(0,0,0,0.04)}
+.card-pad{padding:14px}
+.card-title{font-size:13px;font-weight:600;color:var(--label-2);text-transform:uppercase;
+  letter-spacing:0.5px;padding:0 4px 8px;display:flex;align-items:center;justify-content:space-between}
+.card-title .total{color:var(--blue);font-size:13px;font-weight:600;text-transform:none;letter-spacing:0}
+
+/* ===== Viewport ===== */
+.viewport{position:relative;aspect-ratio:4/3;background:#000;overflow:hidden;border-radius:14px;
+  box-shadow:0 1px 3px rgba(0,0,0,0.08)}
+.viewport video,.viewport canvas,.viewport img{position:absolute;inset:0;width:100%;height:100%;
+  object-fit:cover;-webkit-transform:translateZ(0);transform:translateZ(0);backface-visibility:hidden}
 #overlayCanvas{pointer-events:none}
-.placeholder{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#444;font-size:14px;gap:8px}
-.placeholder svg{width:48px;height:48px;opacity:.5}
+.placeholder{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  color:rgba(255,255,255,0.4);font-size:13px;gap:10px;background:#1c1c1e}
+.placeholder svg{width:42px;height:42px;opacity:.6}
 
-.controls{padding:14px;display:flex;flex-direction:column;gap:12px}
+/* ===== Buttons (iOS filled / tinted / plain) ===== */
 .btn-row{display:flex;gap:8px}
-.btn{flex:1;padding:13px;border-radius:10px;background:#1c1c28;font-size:14px;font-weight:600;color:#e8e8ec;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:6px;border:1px solid #25253a}
-.btn:active{transform:scale(.97);background:#23233a}
-.btn.primary{background:linear-gradient(135deg,#1e88e5,#1565c0);border:none;color:#fff}
-.btn.success{background:linear-gradient(135deg,#43a047,#2e7d32);border:none;color:#fff}
-.btn.ghost{background:transparent;border:1px solid #2a2a3a}
-.btn:disabled{opacity:.4;pointer-events:none}
+.btn{flex:1;padding:13px 16px;border-radius:12px;background:var(--gray-fill);
+  font-size:15px;font-weight:500;color:var(--label);letter-spacing:-0.2px;
+  transition:all .12s ease;display:flex;align-items:center;justify-content:center;gap:6px;
+  min-height:46px}
+.btn:active{transform:scale(.97);background:var(--gray-fill-2)}
+.btn.primary{background:var(--blue);color:#fff;font-weight:600}
+.btn.primary:active{background:var(--blue-dark)}
+.btn.success{background:var(--green);color:#fff;font-weight:600}
+.btn.danger{background:rgba(255,59,48,0.12);color:var(--red);font-weight:500}
+.btn:disabled{opacity:.35;pointer-events:none}
 
-.sliders{display:flex;flex-direction:column;gap:10px;background:#13131c;padding:12px;border-radius:10px;border:1px solid #1f1f2c}
+/* ===== Sliders (iOS) ===== */
+.sliders{display:flex;flex-direction:column;gap:14px}
 .slider-row{display:flex;flex-direction:column;gap:6px}
-.slider-row label{display:flex;justify-content:space-between;font-size:12px;color:#a0a0b0;font-weight:500}
-.slider-row label span{color:#1e88e5;font-weight:700;font-variant-numeric:tabular-nums}
-input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:4px;background:#2a2a3a;border-radius:2px;outline:none}
-input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:#1e88e5;cursor:pointer;box-shadow:0 0 8px rgba(30,136,229,.5)}
-input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:#1e88e5;cursor:pointer;border:none}
+.slider-row label{display:flex;justify-content:space-between;font-size:13px;color:var(--label-2);font-weight:500}
+.slider-row label span{color:var(--label);font-weight:600;font-variant-numeric:tabular-nums}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:4px;
+  background:linear-gradient(to right,var(--blue) 0%,var(--blue) var(--p,50%),var(--gray-fill-2) var(--p,50%),var(--gray-fill-2) 100%);
+  border-radius:2px;outline:none}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:28px;height:28px;
+  border-radius:50%;background:#fff;cursor:pointer;
+  box-shadow:0 1px 1px rgba(0,0,0,0.05),0 3px 8px rgba(0,0,0,0.15)}
+input[type=range]::-moz-range-thumb{width:28px;height:28px;border-radius:50%;background:#fff;cursor:pointer;
+  border:none;box-shadow:0 1px 1px rgba(0,0,0,0.05),0 3px 8px rgba(0,0,0,0.15)}
 
-.results{padding:0 14px 14px}
-.results h3{font-size:12px;font-weight:600;color:#6e6e80;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between}
-.results h3 .total{color:#1e88e5;font-size:14px}
-.result-grid{display:grid;grid-template-columns:1fr;gap:6px}
-.result-item{display:flex;align-items:center;gap:10px;padding:10px 12px;background:#13131c;border-radius:10px;border:1px solid #1f1f2c}
-.swatch{width:22px;height:22px;border-radius:50%;flex-shrink:0;box-shadow:0 0 0 2px rgba(255,255,255,.05)}
-.result-item .name{flex:1;font-size:14px;font-weight:500}
-.result-item .var{font-size:11px;color:#6e6e80;font-family:monospace;background:#0d0d14;padding:2px 6px;border-radius:4px;margin-right:8px}
-.result-item .count{font-size:18px;font-weight:700;font-variant-numeric:tabular-nums;min-width:36px;text-align:right}
-.empty-results{text-align:center;color:#444;padding:30px 0;font-size:13px}
+/* ===== Result list (iOS settings cells) ===== */
+.result-list{display:flex;flex-direction:column}
+.result-item{display:flex;align-items:center;gap:12px;padding:12px 14px;
+  background:var(--card);position:relative;cursor:pointer;transition:background .12s}
+.result-item:active{background:var(--gray-fill)}
+.result-item:not(:last-child)::after{content:"";position:absolute;left:46px;right:0;bottom:0;
+  height:0.5px;background:var(--sep)}
+.result-item.highlighted{background:rgba(0,122,255,0.08)}
+.swatch{width:22px;height:22px;border-radius:50%;flex-shrink:0;
+  box-shadow:inset 0 0 0 0.5px rgba(0,0,0,0.08)}
+.result-item .name{flex:1;font-size:15px;font-weight:400;color:var(--label);letter-spacing:-0.2px}
+.result-item .var{font-size:12px;color:var(--label-2);font-family:"SF Mono",Menlo,monospace;
+  background:var(--gray-fill);padding:2px 6px;border-radius:5px;margin-right:6px}
+.result-item .count{font-size:17px;font-weight:600;font-variant-numeric:tabular-nums;
+  min-width:32px;text-align:right;color:var(--label)}
+.result-item .chev{color:var(--label-3);font-size:14px;margin-left:4px}
+.empty-results{text-align:center;color:var(--label-3);padding:32px 16px;font-size:14px;background:var(--card)}
 
-/* ---- CALCULATOR PAGE ---- */
-.calc-page{padding:0;background:#0d0d14}
-.calc-vars{padding:10px 14px;background:#13131c;border-bottom:1px solid #1f1f2c;display:flex;flex-wrap:wrap;gap:6px;min-height:46px;align-items:center}
-.calc-vars .empty{color:#444;font-size:12px;font-style:italic}
-.var-chip{display:inline-flex;align-items:center;gap:5px;background:#1c1c28;border:1px solid #25253a;padding:4px 8px;border-radius:6px;font-size:12px;font-family:monospace}
-.var-chip .vdot{width:8px;height:8px;border-radius:50%}
-.var-chip .vname{font-weight:700}
-.var-chip .vval{color:#1e88e5;font-weight:700}
+/* ===== Calculator ===== */
+.calc-page{padding:0 16px 16px}
+.calc-vars{padding:10px 12px;background:var(--card);border-radius:12px;
+  display:flex;flex-wrap:wrap;gap:6px;min-height:46px;align-items:center}
+.calc-vars .empty{color:var(--label-3);font-size:13px;width:100%;text-align:center;padding:4px 0}
+.var-chip{display:inline-flex;align-items:center;gap:5px;background:var(--gray-fill);
+  padding:5px 10px;border-radius:8px;font-size:13px;font-family:"SF Mono",Menlo,monospace;cursor:pointer;
+  transition:background .12s}
+.var-chip:active{background:var(--gray-fill-2)}
+.var-chip .vdot{width:10px;height:10px;border-radius:50%}
+.var-chip .vname{font-weight:600;color:var(--label)}
+.var-chip .vval{color:var(--blue);font-weight:600}
 
-.calc-display{padding:18px 16px;background:linear-gradient(180deg,#0a0a0f,#13131c);min-height:130px;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;border-bottom:1px solid #1f1f2c}
-.calc-expr{font-family:"SF Mono",Menlo,Consolas,monospace;font-size:18px;color:#a0a0b0;text-align:right;min-height:24px;word-break:break-all;line-height:1.3}
-.calc-result{font-family:"SF Mono",Menlo,Consolas,monospace;font-size:36px;font-weight:300;color:#fff;text-align:right;min-height:46px;word-break:break-all;line-height:1.2}
-.calc-result.error{color:#e53935;font-size:20px}
-.calc-status{display:flex;justify-content:flex-end;gap:8px;font-size:10px;color:#6e6e80;font-family:monospace;letter-spacing:1px}
-.calc-status span{padding:1px 6px;border-radius:4px;background:#1c1c28}
-.calc-status span.active{background:#1e88e5;color:#fff}
+.calc-display{padding:18px 18px 14px;background:var(--card);border-radius:14px;
+  min-height:120px;display:flex;flex-direction:column;justify-content:flex-end;gap:4px}
+.calc-status{display:flex;justify-content:flex-end;gap:6px;font-size:10px;color:var(--label-3);
+  font-family:"SF Mono",Menlo,monospace;letter-spacing:0.8px;margin-bottom:4px}
+.calc-status span{padding:2px 6px;border-radius:4px;background:var(--gray-fill)}
+.calc-status span.active{background:var(--orange);color:#fff}
+.calc-expr{font-family:"SF Mono",Menlo,Consolas,monospace;font-size:17px;color:var(--label-2);
+  text-align:right;min-height:22px;word-break:break-all;line-height:1.3}
+.calc-result{font-family:-apple-system,sans-serif;font-size:42px;font-weight:300;
+  color:var(--label);text-align:right;min-height:50px;word-break:break-all;line-height:1.1;letter-spacing:-1px}
+.calc-result.error{color:var(--red);font-size:18px;font-weight:400}
 
-.calc-pad{flex:1;display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:#1f1f2c;padding:1px}
-.k{display:flex;flex-direction:column;align-items:center;justify-content:center;background:#1c1c28;font-size:18px;font-weight:500;color:#e8e8ec;min-height:48px;position:relative;transition:background .1s}
-.k:active{background:#2a2a3a}
-.k.fn{background:#15151f;font-size:13px;color:#a0a0b0}
-.k.op{background:#1e1e2e;color:#1e88e5;font-weight:600}
-.k.eq{background:linear-gradient(135deg,#1e88e5,#1565c0);color:#fff;font-weight:700;font-size:22px}
-.k.ac{background:#2a1515;color:#ff6b6b;font-weight:600;font-size:14px}
-.k.del{background:#1c1c28;color:#ff9b6b;font-size:13px}
-.k.var{background:#151f15;color:#43a047;font-weight:700;font-family:monospace}
-.k.shift-on{background:#fb8c00!important;color:#000}
-.k .sub{position:absolute;top:3px;left:0;right:0;font-size:9px;color:#fb8c00;text-align:center;font-weight:600;letter-spacing:.3px}
+.calc-pad{flex:1;display:grid;grid-template-columns:repeat(5,1fr);gap:8px;padding-top:12px}
+.k{display:flex;flex-direction:column;align-items:center;justify-content:center;
+  background:var(--card);font-size:20px;font-weight:400;color:var(--label);
+  min-height:50px;position:relative;border-radius:12px;
+  box-shadow:0 1px 2px rgba(0,0,0,0.04);transition:all .1s ease}
+.k:active{background:var(--gray-fill);transform:scale(0.96)}
+.k.fn{background:var(--gray-fill);font-size:14px;color:var(--label);font-weight:500}
+.k.op{background:var(--orange);color:#fff;font-weight:500;font-size:22px}
+.k.op:active{background:#E08600}
+.k.eq{background:var(--blue);color:#fff;font-weight:600;font-size:24px}
+.k.eq:active{background:var(--blue-dark)}
+.k.ac{background:rgba(255,59,48,0.12);color:var(--red);font-weight:600;font-size:15px}
+.k.del{background:var(--gray-fill);color:var(--label);font-size:13px;font-weight:500}
+.k.var{background:rgba(52,199,89,0.14);color:var(--green);font-weight:600;font-family:"SF Mono",Menlo,monospace;font-size:18px}
+.k.shift-on{background:var(--orange)!important;color:#fff!important}
+.k.shift-on .sub{color:#fff}
+.k .sub{position:absolute;top:4px;left:0;right:0;font-size:9px;color:var(--orange);
+  text-align:center;font-weight:600;letter-spacing:0.3px}
 
-/* Toast */
-.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(100px);background:#1e88e5;color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;font-weight:500;z-index:1000;transition:transform .25s;box-shadow:0 4px 16px rgba(0,0,0,.4);max-width:90%;text-align:center}
+/* ===== Toast ===== */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(120px);
+  background:rgba(40,40,40,0.92);color:#fff;padding:12px 20px;border-radius:14px;
+  font-size:14px;font-weight:500;z-index:1000;transition:transform .28s cubic-bezier(0.4,0,0.2,1);
+  box-shadow:0 8px 24px rgba(0,0,0,0.2);max-width:88%;text-align:center;
+  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);letter-spacing:-0.2px}
 .toast.show{transform:translateX(-50%) translateY(0)}
 
 /* Scrollbar */
-.page::-webkit-scrollbar{width:6px}
-.page::-webkit-scrollbar-thumb{background:#2a2a3a;border-radius:3px}
+.page::-webkit-scrollbar{width:0}
+
+/* Small icon set */
+.ic{width:18px;height:18px;flex-shrink:0}
 
 @media (max-height:680px){
-  .calc-display{min-height:100px;padding:12px 16px}
-  .calc-result{font-size:30px}
-  .k{min-height:42px;font-size:16px}
+  .calc-display{min-height:100px;padding:14px 16px 10px}
+  .calc-result{font-size:34px;min-height:42px}
+  .k{min-height:44px;font-size:18px}
+  .k.op{font-size:20px}
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#000000;
+    --card:#1c1c1e;
+    --card-2:#2c2c2e;
+    --sep:rgba(84,84,88,0.32);
+    --sep-strong:rgba(84,84,88,0.50);
+    --label:#ffffff;
+    --label-2:rgba(235,235,245,0.60);
+    --label-3:rgba(235,235,245,0.30);
+    --gray-fill:rgba(118,118,128,0.24);
+    --gray-fill-2:rgba(118,118,128,0.36);
+  }
+  .k{box-shadow:none}
 }
 </style>
 </head>
@@ -114,13 +210,15 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;bac
 <div id="app">
 
 <header>
-  <div class="logo"><div class="logo-dot"></div>ColorCount<span class="badge">PRO</span></div>
-  <button class="btn ghost" style="padding:6px 10px;font-size:11px;flex:none" id="aboutBtn">?</button>
+  <div class="logo"><div class="logo-dot"></div>ColorCount<span class="pro">PRO</span></div>
+  <button class="icon-btn" id="aboutBtn" aria-label="Info">
+    <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="8.01"/><line x1="11" y1="12" x2="12" y2="12"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="11" y1="16" x2="13" y2="16"/></svg>
+  </button>
 </header>
 
 <div class="tabs">
-  <button class="tab active" data-tab="cam">📷 Conteggio</button>
-  <button class="tab" data-tab="calc">🧮 Calcolatrice</button>
+  <button class="tab active" data-tab="cam">Conteggio</button>
+  <button class="tab" data-tab="calc">Calcolatrice</button>
 </div>
 
 <!-- ===== CAMERA PAGE ===== -->
@@ -130,42 +228,65 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;bac
     <canvas id="workCanvas" style="display:none"></canvas>
     <canvas id="overlayCanvas"></canvas>
     <div class="placeholder" id="placeholder">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 7h3l2-3h8l2 3h3v13H3z"/><circle cx="12" cy="13" r="4"/></svg>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h3l2-3h8l2 3h3v13H3z"/><circle cx="12" cy="13" r="4"/></svg>
       <span>Avvia fotocamera o carica immagine</span>
     </div>
   </div>
 
-  <div class="controls">
-    <div class="btn-row">
-      <button class="btn primary" id="camBtn">📷 Avvia Camera</button>
-      <button class="btn" id="uploadBtn">🖼️ Carica</button>
+  <div class="card card-pad">
+    <div class="btn-row" style="margin-bottom:8px">
+      <button class="btn primary" id="camBtn">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+        Avvia Camera
+      </button>
+      <button class="btn" id="uploadBtn">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/></svg>
+        Carica
+      </button>
       <input type="file" id="fileInput" accept="image/*" style="display:none">
     </div>
     <div class="btn-row">
-      <button class="btn success" id="snapBtn" disabled>📸 Scatta &amp; Analizza</button>
-      <button class="btn" id="analyzeBtn" disabled>🔍 Rianalizza</button>
+      <button class="btn success" id="snapBtn" disabled>
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="4"/><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/></svg>
+        Scatta
+      </button>
+      <button class="btn" id="analyzeBtn" disabled>
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg>
+        Rianalizza
+      </button>
+      <button class="btn" id="saveBtn" disabled>
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Salva
+      </button>
     </div>
+  </div>
 
+  <div class="card card-pad">
     <div class="sliders">
       <div class="slider-row">
         <label>Sensibilità Colore <span id="sensVal">1.00</span></label>
         <input type="range" id="sens" min="0.5" max="1.5" step="0.05" value="1.0">
       </div>
       <div class="slider-row">
-        <label>Dim. Min. Oggetto <span id="minSizeVal">25 px</span></label>
+        <label>Dimensione minima oggetto <span id="minSizeVal">25 px</span></label>
         <input type="range" id="minSize" min="5" max="500" step="5" value="25">
       </div>
       <div class="slider-row">
-        <label>Risoluzione Analisi <span id="resVal">500 px</span></label>
-        <input type="range" id="res" min="200" max="1000" step="50" value="500">
+        <label>Risoluzione analisi <span id="resVal">500 px</span></label>
+        <input type="range" id="res" min="200" max="1500" step="50" value="500">
       </div>
     </div>
   </div>
 
-  <div class="results">
-    <h3>Risultati <span class="total" id="totalCount"></span></h3>
-    <div class="result-grid" id="resultGrid">
-      <div class="empty-results">Nessuna analisi ancora. Scatta o carica un'immagine.</div>
+  <div>
+    <div class="card-title">Risultati <span class="total" id="totalCount"></span></div>
+    <div class="card">
+      <div class="result-list" id="resultGrid">
+        <div class="empty-results">Nessuna analisi. Scatta o carica un'immagine.</div>
+      </div>
+    </div>
+    <div style="font-size:12px;color:var(--label-3);padding:8px 4px 0;letter-spacing:-0.1px">
+      Tocca un colore per evidenziare gli oggetti sull'immagine.
     </div>
   </div>
 </div>
@@ -173,7 +294,7 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;bac
 <!-- ===== CALCULATOR PAGE ===== -->
 <div class="page calc-page" id="page-calc">
   <div class="calc-vars" id="calcVars">
-    <span class="empty">Nessuna variabile colore — analizza un'immagine.</span>
+    <span class="empty">Nessuna variabile colore. Analizza un'immagine.</span>
   </div>
   <div class="calc-display">
     <div class="calc-status">
@@ -289,20 +410,33 @@ function countObjects(labels, W, H, minSize){
 
   const compColor = new Map();   // root -> color index
   const compSize  = new Map();   // root -> pixel count
-  const compRoots = new Map();   // root -> [pixel indices] (only kept if big enough later)
-  for(let i=0;i<N;i++){
-    if(labels[i] < 0) continue;
-    const r = find(i);
-    compColor.set(r, labels[i]);
-    compSize.set(r, (compSize.get(r)||0) + 1);
+  const compSumX  = new Map();   // root -> sum of x
+  const compSumY  = new Map();   // root -> sum of y
+  for(let y=0;y<H;y++){
+    for(let x=0;x<W;x++){
+      const i = y*W + x;
+      if(labels[i] < 0) continue;
+      const r = find(i);
+      compColor.set(r, labels[i]);
+      compSize.set(r, (compSize.get(r)||0) + 1);
+      compSumX.set(r, (compSumX.get(r)||0) + x);
+      compSumY.set(r, (compSumY.get(r)||0) + y);
+    }
   }
 
   const counts = new Array(COLORS.length).fill(0);
+  const centroids = Array.from({length:COLORS.length}, ()=>[]);  // per color: [{x,y,size}]
   const validRoots = new Set();
   for(const [r,sz] of compSize){
     if(sz >= minSize){
-      counts[compColor.get(r)]++;
+      const ci = compColor.get(r);
+      counts[ci]++;
       validRoots.add(r);
+      centroids[ci].push({
+        x: compSumX.get(r) / sz,
+        y: compSumY.get(r) / sz,
+        size: sz
+      });
     }
   }
 
@@ -314,7 +448,7 @@ function countObjects(labels, W, H, minSize){
     mask[i] = validRoots.has(r) ? compColor.get(r) : -1;
   }
 
-  return { counts, mask, components: validRoots.size };
+  return { counts, mask, centroids, components: validRoots.size };
 }
 
 /* =========================================================
@@ -328,6 +462,8 @@ const placeholder = $('placeholder');
 let stream = null;
 let lastImageSource = null;   // HTMLVideoElement | HTMLImageElement | HTMLCanvasElement
 let lastCounts = null;
+let lastAnalysis = null;      // { counts, mask, centroids, W, H, sw, sh, snapshot:HTMLCanvasElement }
+let highlightedColor = -1;    // color index or -1
 
 function setPlaceholderVisible(v){ placeholder.style.display = v ? 'flex' : 'none'; }
 
@@ -384,7 +520,7 @@ async function startCamera(){
     video.srcObject = stream;
     video.style.display = 'block';
     setPlaceholderVisible(false);
-    $('camBtn').textContent = '⏹ Stop Camera';
+    setCamBtn(true);
     $('snapBtn').disabled = false;
     lastImageSource = video;
 
@@ -400,8 +536,18 @@ async function startCamera(){
 function stopCamera(){
   if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; }
   video.srcObject = null;
-  $('camBtn').textContent = '📷 Avvia Camera';
+  setCamBtn(false);
   $('snapBtn').disabled = true;
+}
+function setCamBtn(running){
+  const b = $('camBtn');
+  if(running){
+    b.classList.remove('primary'); b.classList.add('danger');
+    b.innerHTML = `<svg class="ic" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>Stop`;
+  } else {
+    b.classList.add('primary'); b.classList.remove('danger');
+    b.innerHTML = `<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>Avvia Camera`;
+  }
 }
 
 $('camBtn').addEventListener('click', startCamera);
@@ -427,12 +573,36 @@ $('snapBtn').addEventListener('click', () => {
 });
 $('analyzeBtn').addEventListener('click', runAnalysis);
 
+function updateSliderFill(el){
+  const min = +el.min, max = +el.max, val = +el.value;
+  const p = ((val - min) / (max - min)) * 100;
+  el.style.setProperty('--p', p + '%');
+}
 ['sens','minSize','res'].forEach(id => {
-  $(id).addEventListener('input', e => {
+  const el = $(id);
+  updateSliderFill(el);
+  el.addEventListener('input', e => {
     if(id==='sens') $('sensVal').textContent = (+e.target.value).toFixed(2);
     if(id==='minSize') $('minSizeVal').textContent = e.target.value + ' px';
     if(id==='res') $('resVal').textContent = e.target.value + ' px';
+    updateSliderFill(el);
   });
+});
+
+// Save annotated image
+$('saveBtn').addEventListener('click', () => {
+  if(!lastAnalysis){ toast('Nessuna immagine da salvare'); return; }
+  overlay.toBlob(blob => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `colorcount_${Date.now()}.png`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url), 1500);
+    toast('Immagine salvata');
+  }, 'image/png');
 });
 
 function drawSourceToOverlayBackground(src){
@@ -472,36 +642,80 @@ function runAnalysis(){
     labels[i] = classifyPixel(data[i*4], data[i*4+1], data[i*4+2], sens);
   }
 
-  // Components
-  const { counts, mask } = countObjects(labels, W, H, minSize);
+  // Components + centroids
+  const { counts, mask, centroids } = countObjects(labels, W, H, minSize);
   lastCounts = counts;
 
-  // Overlay paint
+  // Snapshot the source frame at full resolution so re-paints don't depend on live video
+  const snap = document.createElement('canvas');
+  snap.width = sw; snap.height = sh;
+  snap.getContext('2d').drawImage(lastImageSource, 0, 0, sw, sh);
+
+  lastAnalysis = { counts, mask, centroids, W, H, sw, sh, snapshot: snap };
+  highlightedColor = -1;
+
+  repaintOverlay();
+  $('analyzeBtn').disabled = false;
+  $('saveBtn').disabled = false;
+  renderResults(counts);
+  syncCalcVars();
+  toast('Analisi completata');
+}
+
+function repaintOverlay(){
+  if(!lastAnalysis) return;
+  const { mask, centroids, W, H, sw, sh, snapshot } = lastAnalysis;
   overlay.width = sw; overlay.height = sh;
   const octx = overlay.getContext('2d');
-  octx.drawImage(lastImageSource, 0, 0, sw, sh);
-  // Build colored mask on a small canvas, then scale up
+  octx.drawImage(snapshot, 0, 0, sw, sh);
+
+  // Build mask layer
+  const wctx = work.getContext('2d', { willReadFrequently: true });
+  work.width = W; work.height = H;
   const maskImg = wctx.createImageData(W, H);
+  const showAll = (highlightedColor < 0);
+  const alpha = showAll ? 95 : 165;
   for(let i=0;i<W*H;i++){
     const m = mask[i];
     if(m < 0){ maskImg.data[i*4+3] = 0; continue; }
+    if(!showAll && m !== highlightedColor){ maskImg.data[i*4+3] = 0; continue; }
     const c = COLORS[m];
-    const r = parseInt(c.hex.substr(1,2),16);
-    const g = parseInt(c.hex.substr(3,2),16);
-    const b = parseInt(c.hex.substr(5,2),16);
-    maskImg.data[i*4]   = r;
-    maskImg.data[i*4+1] = g;
-    maskImg.data[i*4+2] = b;
-    maskImg.data[i*4+3] = 140;
+    maskImg.data[i*4]   = parseInt(c.hex.substr(1,2),16);
+    maskImg.data[i*4+1] = parseInt(c.hex.substr(3,2),16);
+    maskImg.data[i*4+2] = parseInt(c.hex.substr(5,2),16);
+    maskImg.data[i*4+3] = alpha;
   }
   wctx.putImageData(maskImg, 0, 0);
   octx.imageSmoothingEnabled = false;
   octx.drawImage(work, 0, 0, sw, sh);
 
-  $('analyzeBtn').disabled = false;
-  renderResults(counts);
-  syncCalcVars();
-  toast('Analisi completata');
+  // Numbered dots when a color is highlighted
+  if(!showAll){
+    const c = COLORS[highlightedColor];
+    const list = centroids[highlightedColor] || [];
+    const scaleX = sw / W, scaleY = sh / H;
+    const baseR = Math.max(14, Math.min(sw, sh) * 0.022);
+    octx.font = `bold ${Math.round(baseR*1.15)}px -apple-system, "SF Pro Display", sans-serif`;
+    octx.textAlign = 'center';
+    octx.textBaseline = 'middle';
+    list.forEach((pt, idx) => {
+      const x = pt.x * scaleX;
+      const y = pt.y * scaleY;
+      // outer white halo
+      octx.beginPath();
+      octx.arc(x, y, baseR + 2, 0, Math.PI*2);
+      octx.fillStyle = 'rgba(255,255,255,0.95)';
+      octx.fill();
+      // colored fill
+      octx.beginPath();
+      octx.arc(x, y, baseR, 0, Math.PI*2);
+      octx.fillStyle = c.hex;
+      octx.fill();
+      // number
+      octx.fillStyle = '#fff';
+      octx.fillText(String(idx+1), x, y + baseR*0.05);
+    });
+  }
 }
 
 function renderResults(counts){
@@ -515,20 +729,26 @@ function renderResults(counts){
     any = true;
     total += n;
     const row = document.createElement('div');
-    row.className = 'result-item';
+    row.className = 'result-item' + (highlightedColor === i ? ' highlighted' : '');
     row.innerHTML = `
       <div class="swatch" style="background:${c.hex}"></div>
       <span class="name">${c.label}</span>
       <span class="var">${c.var}</span>
       <span class="count">${n}</span>
+      <span class="chev">${highlightedColor === i ? '●' : '›'}</span>
     `;
+    row.addEventListener('click', () => {
+      highlightedColor = (highlightedColor === i) ? -1 : i;
+      repaintOverlay();
+      renderResults(counts);
+    });
     grid.appendChild(row);
   });
   if(!any){
     grid.innerHTML = '<div class="empty-results">Nessun oggetto rilevato. Regola sensibilità o dim. minima.</div>';
     $('totalCount').textContent = '';
   } else {
-    $('totalCount').textContent = `tot. ${total}`;
+    $('totalCount').textContent = `Totale ${total}`;
   }
 }
 
