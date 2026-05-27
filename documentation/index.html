@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<title>ColorCount Pro — Documentazione</title>
+<style>
+body{font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:780px;margin:40px auto;padding:0 20px;color:#222;line-height:1.55}
+h1{border-bottom:2px solid #1e88e5;padding-bottom:8px}
+h2{margin-top:36px;color:#1565c0}
+code{background:#f3f3f7;padding:2px 6px;border-radius:4px;font-size:.92em}
+pre{background:#1a1a25;color:#e8e8ec;padding:14px;border-radius:8px;overflow-x:auto}
+table{border-collapse:collapse;width:100%;margin:12px 0}
+th,td{border:1px solid #ddd;padding:8px 12px;text-align:left}
+th{background:#f5f5fa}
+.note{background:#fff7e0;border-left:4px solid #fb8c00;padding:10px 14px;border-radius:0 6px 6px 0;margin:14px 0}
+</style>
+</head>
+<body>
+
+<h1>ColorCount Pro — Documentazione</h1>
+
+<p><strong>Versione:</strong> 1.0 &nbsp; · &nbsp; <strong>Tipo:</strong> Single-file HTML5 web app &nbsp; · &nbsp; <strong>Dipendenze:</strong> nessuna</p>
+
+<h2>1. Installazione</h2>
+
+<p>ColorCount Pro è una singola pagina HTML. Non serve compilare nulla.</p>
+
+<ol>
+  <li>Estrai lo zip.</li>
+  <li>Carica il contenuto della cartella <code>docs/</code> sul tuo web server (o apri <code>docs/index.html</code> direttamente nel browser per upload di immagini).</li>
+  <li>Per usare la fotocamera servono <strong>HTTPS</strong> e un permesso utente. <code>localhost</code> funziona anche senza certificato.</li>
+</ol>
+
+<div class="note">
+  <strong>Hosting consigliato:</strong> GitHub Pages, Netlify, Vercel, Cloudflare Pages. Tutti gratuiti e con HTTPS automatico.
+</div>
+
+<h2>2. Uso base</h2>
+
+<h3>Tab "Conteggio"</h3>
+<ul>
+  <li><strong>Avvia Camera</strong> → richiede permesso fotocamera, mostra il flusso live.</li>
+  <li><strong>Carica</strong> → carica un'immagine dal dispositivo.</li>
+  <li><strong>Scatta &amp; Analizza</strong> → cattura il frame corrente e conta gli oggetti.</li>
+  <li><strong>Rianalizza</strong> → ricalcola con nuovi parametri senza dover riscattare.</li>
+</ul>
+
+<h3>Slider di calibrazione</h3>
+<table>
+  <tr><th>Slider</th><th>Range</th><th>Effetto</th></tr>
+  <tr><td>Sensibilità Colore</td><td>0.5 – 1.5</td><td>Più basso = accetta colori più desaturati. Più alto = solo colori vividi.</td></tr>
+  <tr><td>Dim. Minima Oggetto</td><td>5 – 500 px</td><td>Filtra macchie di colore troppo piccole (rumore). Aumenta per ignorare il fondo.</td></tr>
+  <tr><td>Risoluzione Analisi</td><td>200 – 1000 px</td><td>Larghezza in pixel dell'immagine elaborata. Più alta = più precisa ma più lenta.</td></tr>
+</table>
+
+<h2>3. Tab "Calcolatrice"</h2>
+
+<p>Le variabili colore vengono automaticamente popolate dopo ogni analisi:</p>
+
+<table>
+  <tr><th>Var</th><th>Colore</th></tr>
+  <tr><td><code>R</code></td><td>Rosso</td></tr>
+  <tr><td><code>O</code></td><td>Arancio</td></tr>
+  <tr><td><code>Y</code></td><td>Giallo</td></tr>
+  <tr><td><code>G</code></td><td>Verde</td></tr>
+  <tr><td><code>C</code></td><td>Ciano</td></tr>
+  <tr><td><code>B</code></td><td>Blu</td></tr>
+  <tr><td><code>P</code></td><td>Viola</td></tr>
+  <tr><td><code>K</code></td><td>Rosa</td></tr>
+</table>
+
+<h3>Funzioni supportate</h3>
+<pre>sin, cos, tan, asin, acos, atan
+log (base 10), ln (naturale), exp, sqrt, cbrt
+abs, floor, ceil, round
+Costanti: π, e
+Memoria: Ans (ultimo risultato), M (se impostata)
+Operatori: + - * / ^  ( )  !  %</pre>
+
+<h3>Tasto SHIFT</h3>
+<p>Premi <strong>SHIFT</strong> per attivare la seconda funzione del tasto successivo (mostrata in arancione sopra il tasto principale). Esempio: SHIFT + sin = asin.</p>
+
+<h3>Esempi</h3>
+<pre>G - Y                    → verdi meno gialli
+(G + R) * 100 / (G+R+Y)  → percentuale verde+rosso sul totale
+sqrt(G^2 + R^2)          → distanza euclidea
+sin(π/4) * G             → mix matematico
+3!                       → 6 (fattoriale)
+50%                      → 0.5</pre>
+
+<h2>4. Personalizzazione</h2>
+
+<p>Tutto il codice è in <code>docs/index.html</code>.</p>
+
+<h3>Aggiungere/modificare colori</h3>
+<p>Cerca <code>const COLORS = [</code> e modifica l'array. Ogni colore ha:</p>
+<pre>{
+  name: 'red',          // identificativo interno
+  label: 'Rosso',       // etichetta UI
+  var: 'R',             // variabile usata nella calcolatrice
+  hex: '#e53935',       // colore del pallino + overlay
+  ranges: [[0,15],[345,360]],  // intervalli Hue HSL (0-360)
+  sMin: 0.35,           // saturazione minima
+  lMin: 0.18, lMax: 0.82 // luminosità min/max
+}</pre>
+
+<h3>Cambiare tema</h3>
+<p>I colori dell'interfaccia sono nel blocco <code>&lt;style&gt;</code> in testa. Background: <code>#0a0a0f</code>, accent: <code>#1e88e5</code>.</p>
+
+<h3>Cambiare lingua</h3>
+<p>Le stringhe italiane sono inline nell'HTML e nei <code>toast()</code> del JS. Modifica direttamente.</p>
+
+<h2>5. Limiti noti</h2>
+<ul>
+  <li>Il conteggio funziona meglio su sfondi neutri (bianco/nero/grigio).</li>
+  <li>Oggetti che si toccano vengono contati come uno (touching objects). Per separarli, alza la sensibilità o aumenta la distanza tra gli oggetti nella foto.</li>
+  <li>L'algoritmo è basato su HSL, non su deep learning — adatto a colori chiari, non a tonalità ambigue (es. cachi, beige).</li>
+</ul>
+
+<h2>6. Supporto</h2>
+<p>Per problemi, personalizzazioni o estensioni, contatta l'autore tramite il marketplace di acquisto.</p>
+
+<hr>
+<p style="color:#888;font-size:.9em;text-align:center">ColorCount Pro v1.0 — © 2026</p>
+
+</body>
+</html>

@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0a0a0f">
+<meta name="description" content="Conta oggetti per colore dalla fotocamera + calcolatrice scientifica avanzata">
+<title>ColorCount Pro</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='30' cy='30' r='18' fill='%2343a047'/%3E%3Ccircle cx='70' cy='35' r='18' fill='%23e53935'/%3E%3Ccircle cx='35' cy='70' r='18' fill='%23fdd835'/%3E%3Ccircle cx='72' cy='72' r='18' fill='%231e88e5'/%3E%3C/svg%3E">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden;background:#0a0a0f;color:#e8e8ec;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;user-select:none;-webkit-user-select:none}
+button{font-family:inherit;color:inherit;background:none;border:none;cursor:pointer;outline:none}
+input,canvas,video{display:block}
+
+#app{display:flex;flex-direction:column;height:100vh;height:100dvh;max-width:560px;margin:0 auto;background:#0d0d14}
+
+/* Header */
+header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:linear-gradient(135deg,#13131c,#0d0d14);border-bottom:1px solid #1f1f2c}
+.logo{display:flex;align-items:center;gap:10px;font-weight:700;font-size:17px;letter-spacing:.3px}
+.logo-dot{width:22px;height:22px;border-radius:50%;background:conic-gradient(#e53935,#fb8c00,#fdd835,#43a047,#1e88e5,#8e24aa,#e53935);box-shadow:0 0 14px rgba(255,255,255,.15)}
+.badge{font-size:10px;font-weight:600;padding:3px 7px;border-radius:6px;background:#1e88e5;color:#fff;letter-spacing:.5px}
+
+/* Tabs */
+.tabs{display:flex;background:#0d0d14;border-bottom:1px solid #1f1f2c}
+.tab{flex:1;padding:13px 0;font-size:14px;font-weight:600;color:#6e6e80;border-bottom:2px solid transparent;transition:all .2s}
+.tab.active{color:#fff;border-bottom-color:#1e88e5}
+.tab:active{background:#15151f}
+
+/* Pages */
+.page{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;display:none}
+.page.active{display:flex;flex-direction:column}
+
+/* ---- CAMERA PAGE ---- */
+.viewport{position:relative;aspect-ratio:4/3;background:#000;overflow:hidden}
+.viewport video,.viewport canvas,.viewport img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}
+#overlayCanvas{pointer-events:none}
+.placeholder{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#444;font-size:14px;gap:8px}
+.placeholder svg{width:48px;height:48px;opacity:.5}
+
+.controls{padding:14px;display:flex;flex-direction:column;gap:12px}
+.btn-row{display:flex;gap:8px}
+.btn{flex:1;padding:13px;border-radius:10px;background:#1c1c28;font-size:14px;font-weight:600;color:#e8e8ec;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:6px;border:1px solid #25253a}
+.btn:active{transform:scale(.97);background:#23233a}
+.btn.primary{background:linear-gradient(135deg,#1e88e5,#1565c0);border:none;color:#fff}
+.btn.success{background:linear-gradient(135deg,#43a047,#2e7d32);border:none;color:#fff}
+.btn.ghost{background:transparent;border:1px solid #2a2a3a}
+.btn:disabled{opacity:.4;pointer-events:none}
+
+.sliders{display:flex;flex-direction:column;gap:10px;background:#13131c;padding:12px;border-radius:10px;border:1px solid #1f1f2c}
+.slider-row{display:flex;flex-direction:column;gap:6px}
+.slider-row label{display:flex;justify-content:space-between;font-size:12px;color:#a0a0b0;font-weight:500}
+.slider-row label span{color:#1e88e5;font-weight:700;font-variant-numeric:tabular-nums}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:4px;background:#2a2a3a;border-radius:2px;outline:none}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:#1e88e5;cursor:pointer;box-shadow:0 0 8px rgba(30,136,229,.5)}
+input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:#1e88e5;cursor:pointer;border:none}
+
+.results{padding:0 14px 14px}
+.results h3{font-size:12px;font-weight:600;color:#6e6e80;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between}
+.results h3 .total{color:#1e88e5;font-size:14px}
+.result-grid{display:grid;grid-template-columns:1fr;gap:6px}
+.result-item{display:flex;align-items:center;gap:10px;padding:10px 12px;background:#13131c;border-radius:10px;border:1px solid #1f1f2c}
+.swatch{width:22px;height:22px;border-radius:50%;flex-shrink:0;box-shadow:0 0 0 2px rgba(255,255,255,.05)}
+.result-item .name{flex:1;font-size:14px;font-weight:500}
+.result-item .var{font-size:11px;color:#6e6e80;font-family:monospace;background:#0d0d14;padding:2px 6px;border-radius:4px;margin-right:8px}
+.result-item .count{font-size:18px;font-weight:700;font-variant-numeric:tabular-nums;min-width:36px;text-align:right}
+.empty-results{text-align:center;color:#444;padding:30px 0;font-size:13px}
+
+/* ---- CALCULATOR PAGE ---- */
+.calc-page{padding:0;background:#0d0d14}
+.calc-vars{padding:10px 14px;background:#13131c;border-bottom:1px solid #1f1f2c;display:flex;flex-wrap:wrap;gap:6px;min-height:46px;align-items:center}
+.calc-vars .empty{color:#444;font-size:12px;font-style:italic}
+.var-chip{display:inline-flex;align-items:center;gap:5px;background:#1c1c28;border:1px solid #25253a;padding:4px 8px;border-radius:6px;font-size:12px;font-family:monospace}
+.var-chip .vdot{width:8px;height:8px;border-radius:50%}
+.var-chip .vname{font-weight:700}
+.var-chip .vval{color:#1e88e5;font-weight:700}
+
+.calc-display{padding:18px 16px;background:linear-gradient(180deg,#0a0a0f,#13131c);min-height:130px;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;border-bottom:1px solid #1f1f2c}
+.calc-expr{font-family:"SF Mono",Menlo,Consolas,monospace;font-size:18px;color:#a0a0b0;text-align:right;min-height:24px;word-break:break-all;line-height:1.3}
+.calc-result{font-family:"SF Mono",Menlo,Consolas,monospace;font-size:36px;font-weight:300;color:#fff;text-align:right;min-height:46px;word-break:break-all;line-height:1.2}
+.calc-result.error{color:#e53935;font-size:20px}
+.calc-status{display:flex;justify-content:flex-end;gap:8px;font-size:10px;color:#6e6e80;font-family:monospace;letter-spacing:1px}
+.calc-status span{padding:1px 6px;border-radius:4px;background:#1c1c28}
+.calc-status span.active{background:#1e88e5;color:#fff}
+
+.calc-pad{flex:1;display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:#1f1f2c;padding:1px}
+.k{display:flex;flex-direction:column;align-items:center;justify-content:center;background:#1c1c28;font-size:18px;font-weight:500;color:#e8e8ec;min-height:48px;position:relative;transition:background .1s}
+.k:active{background:#2a2a3a}
+.k.fn{background:#15151f;font-size:13px;color:#a0a0b0}
+.k.op{background:#1e1e2e;color:#1e88e5;font-weight:600}
+.k.eq{background:linear-gradient(135deg,#1e88e5,#1565c0);color:#fff;font-weight:700;font-size:22px}
+.k.ac{background:#2a1515;color:#ff6b6b;font-weight:600;font-size:14px}
+.k.del{background:#1c1c28;color:#ff9b6b;font-size:13px}
+.k.var{background:#151f15;color:#43a047;font-weight:700;font-family:monospace}
+.k.shift-on{background:#fb8c00!important;color:#000}
+.k .sub{position:absolute;top:3px;left:0;right:0;font-size:9px;color:#fb8c00;text-align:center;font-weight:600;letter-spacing:.3px}
+
+/* Toast */
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(100px);background:#1e88e5;color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;font-weight:500;z-index:1000;transition:transform .25s;box-shadow:0 4px 16px rgba(0,0,0,.4);max-width:90%;text-align:center}
+.toast.show{transform:translateX(-50%) translateY(0)}
+
+/* Scrollbar */
+.page::-webkit-scrollbar{width:6px}
+.page::-webkit-scrollbar-thumb{background:#2a2a3a;border-radius:3px}
+
+@media (max-height:680px){
+  .calc-display{min-height:100px;padding:12px 16px}
+  .calc-result{font-size:30px}
+  .k{min-height:42px;font-size:16px}
+}
+</style>
+</head>
+<body>
+<div id="app">
+
+<header>
+  <div class="logo"><div class="logo-dot"></div>ColorCount<span class="badge">PRO</span></div>
+  <button class="btn ghost" style="padding:6px 10px;font-size:11px;flex:none" id="aboutBtn">?</button>
+</header>
+
+<div class="tabs">
+  <button class="tab active" data-tab="cam">📷 Conteggio</button>
+  <button class="tab" data-tab="calc">🧮 Calcolatrice</button>
+</div>
+
+<!-- ===== CAMERA PAGE ===== -->
+<div class="page active" id="page-cam">
+  <div class="viewport">
+    <video id="video" autoplay playsinline muted></video>
+    <canvas id="workCanvas" style="display:none"></canvas>
+    <canvas id="overlayCanvas"></canvas>
+    <div class="placeholder" id="placeholder">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 7h3l2-3h8l2 3h3v13H3z"/><circle cx="12" cy="13" r="4"/></svg>
+      <span>Avvia fotocamera o carica immagine</span>
+    </div>
+  </div>
+
+  <div class="controls">
+    <div class="btn-row">
+      <button class="btn primary" id="camBtn">📷 Avvia Camera</button>
+      <button class="btn" id="uploadBtn">🖼️ Carica</button>
+      <input type="file" id="fileInput" accept="image/*" style="display:none">
+    </div>
+    <div class="btn-row">
+      <button class="btn success" id="snapBtn" disabled>📸 Scatta &amp; Analizza</button>
+      <button class="btn" id="analyzeBtn" disabled>🔍 Rianalizza</button>
+    </div>
+
+    <div class="sliders">
+      <div class="slider-row">
+        <label>Sensibilità Colore <span id="sensVal">1.00</span></label>
+        <input type="range" id="sens" min="0.5" max="1.5" step="0.05" value="1.0">
+      </div>
+      <div class="slider-row">
+        <label>Dim. Min. Oggetto <span id="minSizeVal">25 px</span></label>
+        <input type="range" id="minSize" min="5" max="500" step="5" value="25">
+      </div>
+      <div class="slider-row">
+        <label>Risoluzione Analisi <span id="resVal">500 px</span></label>
+        <input type="range" id="res" min="200" max="1000" step="50" value="500">
+      </div>
+    </div>
+  </div>
+
+  <div class="results">
+    <h3>Risultati <span class="total" id="totalCount"></span></h3>
+    <div class="result-grid" id="resultGrid">
+      <div class="empty-results">Nessuna analisi ancora. Scatta o carica un'immagine.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== CALCULATOR PAGE ===== -->
+<div class="page calc-page" id="page-calc">
+  <div class="calc-vars" id="calcVars">
+    <span class="empty">Nessuna variabile colore — analizza un'immagine.</span>
+  </div>
+  <div class="calc-display">
+    <div class="calc-status">
+      <span id="stShift">SHIFT</span>
+      <span id="stMem">M</span>
+    </div>
+    <div class="calc-expr" id="calcExpr">&nbsp;</div>
+    <div class="calc-result" id="calcResult">0</div>
+  </div>
+  <div class="calc-pad" id="calcPad"></div>
+</div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* =========================================================
+   COLORCOUNT PRO  —  © 2026  Single-file edition
+   ========================================================= */
+
+const $ = id => document.getElementById(id);
+const toast = (msg, ms=1800) => {
+  const t = $('toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toast._t); toast._t = setTimeout(()=>t.classList.remove('show'), ms);
+};
+
+/* ---------- TABS ---------- */
+document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => {
+  document.querySelectorAll('.tab').forEach(x => x.classList.toggle('active', x === t));
+  document.querySelectorAll('.page').forEach(p => p.classList.toggle('active', p.id === 'page-' + t.dataset.tab));
+}));
+
+$('aboutBtn').addEventListener('click', () => {
+  toast('ColorCount Pro v1.0 — Conta oggetti per colore con la fotocamera, poi calcola scientificamente.', 4200);
+});
+
+/* =========================================================
+   COLOR CLASSIFICATION
+   ========================================================= */
+const COLORS = [
+  {name:'red',    label:'Rosso',   var:'R', hex:'#e53935', ranges:[[0,15],[345,360]], sMin:0.35, lMin:0.18, lMax:0.82},
+  {name:'orange', label:'Arancio', var:'O', hex:'#fb8c00', ranges:[[16,42]],          sMin:0.40, lMin:0.22, lMax:0.82},
+  {name:'yellow', label:'Giallo',  var:'Y', hex:'#fdd835', ranges:[[43,68]],          sMin:0.35, lMin:0.30, lMax:0.88},
+  {name:'green',  label:'Verde',   var:'G', hex:'#43a047', ranges:[[69,165]],         sMin:0.25, lMin:0.15, lMax:0.82},
+  {name:'cyan',   label:'Ciano',   var:'C', hex:'#00acc1', ranges:[[166,195]],        sMin:0.25, lMin:0.20, lMax:0.82},
+  {name:'blue',   label:'Blu',     var:'B', hex:'#1e88e5', ranges:[[196,255]],        sMin:0.25, lMin:0.18, lMax:0.82},
+  {name:'purple', label:'Viola',   var:'P', hex:'#8e24aa', ranges:[[256,315]],        sMin:0.25, lMin:0.18, lMax:0.78},
+  {name:'pink',   label:'Rosa',    var:'K', hex:'#ec407a', ranges:[[316,344]],        sMin:0.25, lMin:0.30, lMax:0.85}
+];
+const COLOR_MAP = Object.fromEntries(COLORS.map(c=>[c.name,c]));
+
+function rgbToHsl(r,g,b){
+  r/=255; g/=255; b/=255;
+  const mx=Math.max(r,g,b), mn=Math.min(r,g,b);
+  let h, s, l=(mx+mn)/2;
+  if(mx===mn){ h=s=0; }
+  else{
+    const d=mx-mn;
+    s = l>0.5 ? d/(2-mx-mn) : d/(mx+mn);
+    if(mx===r) h=((g-b)/d + (g<b?6:0))/6;
+    else if(mx===g) h=((b-r)/d + 2)/6;
+    else h=((r-g)/d + 4)/6;
+  }
+  return [h*360, s, l];
+}
+
+function classifyPixel(r,g,b, sens){
+  const [h,s,l] = rgbToHsl(r,g,b);
+  if(l < 0.10) return -1;
+  if(l > 0.93 && s < 0.18) return -1;
+  if(s < 0.13 * sens) return -1;
+  for(let i=0;i<COLORS.length;i++){
+    const c = COLORS[i];
+    if(s < c.sMin * sens) continue;
+    if(l < c.lMin || l > c.lMax) continue;
+    for(const [a,b2] of c.ranges){
+      if(h >= a && h <= b2) return i;
+    }
+  }
+  return -1;
+}
+
+/* =========================================================
+   CONNECTED COMPONENTS  (union-find, 4-connectivity)
+   ========================================================= */
+function countObjects(labels, W, H, minSize){
+  const N = W*H;
+  const parent = new Int32Array(N);
+  for(let i=0;i<N;i++) parent[i] = i;
+  const rank = new Uint8Array(N);
+
+  function find(x){
+    let r=x; while(parent[r]!==r) r=parent[r];
+    while(parent[x]!==r){ const n=parent[x]; parent[x]=r; x=n; }
+    return r;
+  }
+  function uni(a,b){
+    a=find(a); b=find(b); if(a===b) return;
+    if(rank[a]<rank[b]){ const t=a; a=b; b=t; }
+    parent[b]=a; if(rank[a]===rank[b]) rank[a]++;
+  }
+
+  for(let y=0;y<H;y++){
+    for(let x=0;x<W;x++){
+      const i = y*W + x;
+      const v = labels[i];
+      if(v < 0) continue;
+      if(x+1 < W && labels[i+1] === v) uni(i, i+1);
+      if(y+1 < H && labels[i+W] === v) uni(i, i+W);
+    }
+  }
+
+  const compColor = new Map();   // root -> color index
+  const compSize  = new Map();   // root -> pixel count
+  const compRoots = new Map();   // root -> [pixel indices] (only kept if big enough later)
+  for(let i=0;i<N;i++){
+    if(labels[i] < 0) continue;
+    const r = find(i);
+    compColor.set(r, labels[i]);
+    compSize.set(r, (compSize.get(r)||0) + 1);
+  }
+
+  const counts = new Array(COLORS.length).fill(0);
+  const validRoots = new Set();
+  for(const [r,sz] of compSize){
+    if(sz >= minSize){
+      counts[compColor.get(r)]++;
+      validRoots.add(r);
+    }
+  }
+
+  // Build mask: pixel -> color index if part of a valid component, else -1
+  const mask = new Int8Array(N);
+  for(let i=0;i<N;i++){
+    if(labels[i] < 0){ mask[i] = -1; continue; }
+    const r = find(i);
+    mask[i] = validRoots.has(r) ? compColor.get(r) : -1;
+  }
+
+  return { counts, mask, components: validRoots.size };
+}
+
+/* =========================================================
+   IMAGE ANALYSIS PIPELINE
+   ========================================================= */
+const video    = $('video');
+const work     = $('workCanvas');
+const overlay  = $('overlayCanvas');
+const placeholder = $('placeholder');
+
+let stream = null;
+let lastImageSource = null;   // HTMLVideoElement | HTMLImageElement | HTMLCanvasElement
+let lastCounts = null;
+
+function setPlaceholderVisible(v){ placeholder.style.display = v ? 'flex' : 'none'; }
+
+async function startCamera(){
+  try{
+    if(stream){ stopCamera(); return; }
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: 'environment' }, width:{ideal:1280}, height:{ideal:960} },
+      audio: false
+    });
+    video.srcObject = stream;
+    video.style.display = 'block';
+    setPlaceholderVisible(false);
+    $('camBtn').textContent = '⏹ Stop Camera';
+    $('snapBtn').disabled = false;
+    lastImageSource = video;
+  }catch(e){
+    toast('Camera non disponibile: ' + e.message, 3000);
+  }
+}
+function stopCamera(){
+  if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; }
+  video.srcObject = null;
+  $('camBtn').textContent = '📷 Avvia Camera';
+  $('snapBtn').disabled = true;
+}
+
+$('camBtn').addEventListener('click', startCamera);
+$('uploadBtn').addEventListener('click', ()=>$('fileInput').click());
+$('fileInput').addEventListener('change', e => {
+  const f = e.target.files[0]; if(!f) return;
+  const url = URL.createObjectURL(f);
+  const img = new Image();
+  img.onload = () => {
+    stopCamera();
+    video.style.display = 'none';
+    setPlaceholderVisible(false);
+    lastImageSource = img;
+    drawSourceToOverlayBackground(img);
+    runAnalysis();
+  };
+  img.src = url;
+});
+
+$('snapBtn').addEventListener('click', () => {
+  if(!lastImageSource) return;
+  runAnalysis();
+});
+$('analyzeBtn').addEventListener('click', runAnalysis);
+
+['sens','minSize','res'].forEach(id => {
+  $(id).addEventListener('input', e => {
+    if(id==='sens') $('sensVal').textContent = (+e.target.value).toFixed(2);
+    if(id==='minSize') $('minSizeVal').textContent = e.target.value + ' px';
+    if(id==='res') $('resVal').textContent = e.target.value + ' px';
+  });
+});
+
+function drawSourceToOverlayBackground(src){
+  // Just paints source to overlay so user sees it (when not using live video)
+  const sw = src.videoWidth || src.naturalWidth || src.width;
+  const sh = src.videoHeight || src.naturalHeight || src.height;
+  if(!sw || !sh) return;
+  overlay.width  = sw;
+  overlay.height = sh;
+  const ctx = overlay.getContext('2d');
+  ctx.drawImage(src, 0, 0, sw, sh);
+}
+
+function runAnalysis(){
+  if(!lastImageSource){ toast('Nessuna immagine'); return; }
+  const sens    = +$('sens').value;
+  const minSize = +$('minSize').value;
+  const targetW = +$('res').value;
+
+  const sw = lastImageSource.videoWidth  || lastImageSource.naturalWidth  || lastImageSource.width;
+  const sh = lastImageSource.videoHeight || lastImageSource.naturalHeight || lastImageSource.height;
+  if(!sw || !sh){ toast('Immagine non pronta'); return; }
+
+  const scale = Math.min(1, targetW / sw);
+  const W = Math.max(50, Math.round(sw * scale));
+  const H = Math.max(50, Math.round(sh * scale));
+
+  work.width = W; work.height = H;
+  const wctx = work.getContext('2d', { willReadFrequently: true });
+  wctx.drawImage(lastImageSource, 0, 0, W, H);
+  const img = wctx.getImageData(0, 0, W, H);
+  const data = img.data;
+
+  // Classify
+  const labels = new Int8Array(W*H);
+  for(let i=0;i<W*H;i++){
+    labels[i] = classifyPixel(data[i*4], data[i*4+1], data[i*4+2], sens);
+  }
+
+  // Components
+  const { counts, mask } = countObjects(labels, W, H, minSize);
+  lastCounts = counts;
+
+  // Overlay paint
+  overlay.width = sw; overlay.height = sh;
+  const octx = overlay.getContext('2d');
+  octx.drawImage(lastImageSource, 0, 0, sw, sh);
+  // Build colored mask on a small canvas, then scale up
+  const maskImg = wctx.createImageData(W, H);
+  for(let i=0;i<W*H;i++){
+    const m = mask[i];
+    if(m < 0){ maskImg.data[i*4+3] = 0; continue; }
+    const c = COLORS[m];
+    const r = parseInt(c.hex.substr(1,2),16);
+    const g = parseInt(c.hex.substr(3,2),16);
+    const b = parseInt(c.hex.substr(5,2),16);
+    maskImg.data[i*4]   = r;
+    maskImg.data[i*4+1] = g;
+    maskImg.data[i*4+2] = b;
+    maskImg.data[i*4+3] = 140;
+  }
+  wctx.putImageData(maskImg, 0, 0);
+  octx.imageSmoothingEnabled = false;
+  octx.drawImage(work, 0, 0, sw, sh);
+
+  $('analyzeBtn').disabled = false;
+  renderResults(counts);
+  syncCalcVars();
+  toast('Analisi completata');
+}
+
+function renderResults(counts){
+  const grid = $('resultGrid');
+  grid.innerHTML = '';
+  let total = 0;
+  let any = false;
+  COLORS.forEach((c, i) => {
+    const n = counts[i] || 0;
+    if(n === 0) return;
+    any = true;
+    total += n;
+    const row = document.createElement('div');
+    row.className = 'result-item';
+    row.innerHTML = `
+      <div class="swatch" style="background:${c.hex}"></div>
+      <span class="name">${c.label}</span>
+      <span class="var">${c.var}</span>
+      <span class="count">${n}</span>
+    `;
+    grid.appendChild(row);
+  });
+  if(!any){
+    grid.innerHTML = '<div class="empty-results">Nessun oggetto rilevato. Regola sensibilità o dim. minima.</div>';
+    $('totalCount').textContent = '';
+  } else {
+    $('totalCount').textContent = `tot. ${total}`;
+  }
+}
+
+/* =========================================================
+   SCIENTIFIC CALCULATOR
+   ========================================================= */
+const calc = {
+  expr: '',
+  result: '0',
+  ans: 0,
+  mem: 0,
+  shift: false,
+  vars: {}   // R, O, Y, G, C, B, P, K -> number
+};
+
+function syncCalcVars(){
+  if(!lastCounts) return;
+  COLORS.forEach((c,i)=> calc.vars[c.var] = lastCounts[i] || 0);
+  renderCalcVars();
+}
+
+function renderCalcVars(){
+  const box = $('calcVars');
+  const entries = Object.entries(calc.vars).filter(([,v])=>v>0);
+  if(!entries.length){
+    box.innerHTML = '<span class="empty">Nessuna variabile colore — analizza un\'immagine.</span>';
+    return;
+  }
+  box.innerHTML = '';
+  entries.forEach(([k,v]) => {
+    const c = COLORS.find(x=>x.var===k);
+    const chip = document.createElement('span');
+    chip.className = 'var-chip';
+    chip.innerHTML = `<span class="vdot" style="background:${c.hex}"></span><span class="vname">${k}</span>=<span class="vval">${v}</span>`;
+    chip.addEventListener('click', ()=>insertToken(k));
+    box.appendChild(chip);
+  });
+}
+
+/* ---- Keypad layout ----
+   Each key: { l: label, t: text inserted, c: class, a: action, s: shift-label, st: shift-text, sa: shift-action }
+*/
+const KEYS = [
+  // Row 1 — function row
+  {l:'SHIFT', c:'fn', a:'shift'},
+  {l:'sin',  c:'fn', t:'sin(',  s:'asin', st:'asin('},
+  {l:'cos',  c:'fn', t:'cos(',  s:'acos', st:'acos('},
+  {l:'tan',  c:'fn', t:'tan(',  s:'atan', st:'atan('},
+  {l:'log',  c:'fn', t:'log(',  s:'10^x', st:'10^('},
+
+  // Row 2
+  {l:'ln',   c:'fn', t:'ln(',   s:'e^x',  st:'exp('},
+  {l:'x²',   c:'fn', t:'^2',    s:'x³',   st:'^3'},
+  {l:'√',    c:'fn', t:'sqrt(', s:'∛',    st:'cbrt('},
+  {l:'(',    c:'fn', t:'('},
+  {l:')',    c:'fn', t:')'},
+
+  // Row 3
+  {l:'7', c:'', t:'7'},
+  {l:'8', c:'', t:'8'},
+  {l:'9', c:'', t:'9'},
+  {l:'DEL', c:'del', a:'del'},
+  {l:'AC',  c:'ac',  a:'ac'},
+
+  // Row 4
+  {l:'4', c:'', t:'4'},
+  {l:'5', c:'', t:'5'},
+  {l:'6', c:'', t:'6'},
+  {l:'×', c:'op', t:'*'},
+  {l:'÷', c:'op', t:'/'},
+
+  // Row 5
+  {l:'1', c:'', t:'1'},
+  {l:'2', c:'', t:'2'},
+  {l:'3', c:'', t:'3'},
+  {l:'+', c:'op', t:'+'},
+  {l:'−', c:'op', t:'-'},
+
+  // Row 6
+  {l:'0', c:'', t:'0'},
+  {l:'.', c:'', t:'.'},
+  {l:'π', c:'op', t:'π'},
+  {l:'^', c:'op', t:'^', s:'xʸ', st:'^'},
+  {l:'=', c:'eq', a:'eq'},
+
+  // Row 7 — vars + memory
+  {l:'R', c:'var', t:'R'},
+  {l:'G', c:'var', t:'G'},
+  {l:'Y', c:'var', t:'Y'},
+  {l:'O', c:'var', t:'O'},
+  {l:'B', c:'var', t:'B'},
+
+  // Row 8 — more vars + memory
+  {l:'C', c:'var', t:'C'},
+  {l:'P', c:'var', t:'P'},
+  {l:'K', c:'var', t:'K'},
+  {l:'Ans', c:'fn', t:'Ans'},
+  {l:'!',  c:'fn', t:'!', s:'n%', st:'%'}
+];
+
+function buildPad(){
+  const pad = $('calcPad');
+  pad.innerHTML = '';
+  KEYS.forEach(k => {
+    const b = document.createElement('button');
+    b.className = 'k ' + (k.c || '');
+    const sublabel = k.s ? `<div class="sub">${k.s}</div>` : '';
+    b.innerHTML = sublabel + `<span>${k.l}</span>`;
+    b.addEventListener('click', () => pressKey(k, b));
+    pad.appendChild(b);
+  });
+}
+buildPad();
+
+function pressKey(k){
+  if(k.a === 'shift'){
+    calc.shift = !calc.shift;
+    document.querySelectorAll('.k').forEach(el=>el.classList.remove('shift-on'));
+    if(calc.shift){
+      document.querySelectorAll('.k').forEach(el => {
+        if(el.querySelector('.sub')) el.classList.add('shift-on');
+      });
+    }
+    $('stShift').classList.toggle('active', calc.shift);
+    return;
+  }
+  if(k.a === 'del'){ calc.expr = calc.expr.slice(0,-1); updateDisplay(); return; }
+  if(k.a === 'ac'){ calc.expr=''; calc.result='0'; $('calcResult').classList.remove('error'); updateDisplay(); return; }
+  if(k.a === 'eq'){ doEvaluate(); return; }
+
+  let t = k.t;
+  if(calc.shift && k.st){ t = k.st; }
+  insertToken(t);
+  if(calc.shift){ calc.shift=false; document.querySelectorAll('.k').forEach(el=>el.classList.remove('shift-on')); $('stShift').classList.remove('active'); }
+}
+
+function insertToken(t){
+  // tab-switch to calc if user clicks a var chip from elsewhere
+  document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active', x.dataset.tab==='calc'));
+  document.querySelectorAll('.page').forEach(p=>p.classList.toggle('active', p.id==='page-calc'));
+  calc.expr += t;
+  updateDisplay();
+}
+
+function updateDisplay(){
+  $('calcExpr').textContent = calc.expr || ' ';
+  $('calcResult').textContent = calc.result;
+}
+
+/* ----- EXPRESSION PARSER (recursive descent, safe) -----
+   Grammar:
+     expr   := term (('+'|'-') term)*
+     term   := power (('*'|'/') power)*
+     power  := unary ('^' unary)*           // right-assoc handled in code
+     unary  := ('+'|'-') unary | postfix
+     postfix:= primary ('!' | '%')*
+     primary:= number | 'π' | identifier ['(' expr ')'] | '(' expr ')'
+*/
+function tokenize(src){
+  const tokens = [];
+  const re = /\s+|(\d+\.\d+|\d+\.|\.\d+|\d+)|([A-Za-z_]\w*)|([+\-*/^()!%])|(π)/g;
+  let m;
+  while((m = re.exec(src)) !== null){
+    if(m[1] !== undefined) tokens.push({t:'num', v: parseFloat(m[1])});
+    else if(m[2] !== undefined) tokens.push({t:'id', v: m[2]});
+    else if(m[3] !== undefined) tokens.push({t:'op', v: m[3]});
+    else if(m[4] !== undefined) tokens.push({t:'num', v: Math.PI});
+  }
+  return tokens;
+}
+
+const FUNCS = {
+  sin: x=>Math.sin(x), cos: x=>Math.cos(x), tan: x=>Math.tan(x),
+  asin: x=>Math.asin(x), acos: x=>Math.acos(x), atan: x=>Math.atan(x),
+  log: x=>Math.log10(x), ln: x=>Math.log(x),
+  sqrt: x=>Math.sqrt(x), cbrt: x=>Math.cbrt(x),
+  exp: x=>Math.exp(x), abs: x=>Math.abs(x),
+  floor: x=>Math.floor(x), ceil: x=>Math.ceil(x), round: x=>Math.round(x)
+};
+
+function evalExpr(src){
+  const tokens = tokenize(src);
+  let pos = 0;
+  const peek = () => tokens[pos];
+  const eat  = () => tokens[pos++];
+
+  function parseExpr(){
+    let v = parseTerm();
+    while(peek() && peek().t==='op' && (peek().v==='+'||peek().v==='-')){
+      const op = eat().v;
+      const r = parseTerm();
+      v = op==='+' ? v+r : v-r;
+    }
+    return v;
+  }
+  function parseTerm(){
+    let v = parsePower();
+    while(peek() && peek().t==='op' && (peek().v==='*'||peek().v==='/')){
+      const op = eat().v;
+      const r = parsePower();
+      v = op==='*' ? v*r : v/r;
+    }
+    return v;
+  }
+  function parsePower(){
+    let v = parseUnary();
+    if(peek() && peek().t==='op' && peek().v==='^'){
+      eat();
+      const r = parsePower();   // right-assoc
+      v = Math.pow(v, r);
+    }
+    return v;
+  }
+  function parseUnary(){
+    if(peek() && peek().t==='op' && (peek().v==='+'||peek().v==='-')){
+      const op = eat().v;
+      const v = parseUnary();
+      return op==='-' ? -v : v;
+    }
+    return parsePostfix();
+  }
+  function parsePostfix(){
+    let v = parsePrimary();
+    while(peek() && peek().t==='op' && (peek().v==='!' || peek().v==='%')){
+      const op = eat().v;
+      if(op==='!'){
+        if(v < 0 || v !== Math.floor(v)) throw new Error('Fattoriale richiede intero ≥0');
+        let r=1; for(let i=2;i<=v;i++) r*=i; v=r;
+      } else { v = v/100; }
+    }
+    return v;
+  }
+  function parsePrimary(){
+    const tk = peek();
+    if(!tk) throw new Error('Espressione incompleta');
+    if(tk.t==='num'){ eat(); return tk.v; }
+    if(tk.t==='op' && tk.v==='('){
+      eat();
+      const v = parseExpr();
+      if(!peek() || peek().v !== ')') throw new Error("Manca ')'");
+      eat();
+      return v;
+    }
+    if(tk.t==='id'){
+      eat();
+      const name = tk.v;
+      // function call?
+      if(peek() && peek().t==='op' && peek().v==='('){
+        eat();
+        const arg = parseExpr();
+        if(!peek() || peek().v !== ')') throw new Error("Manca ')'");
+        eat();
+        const fn = FUNCS[name];
+        if(!fn) throw new Error('Funzione sconosciuta: '+name);
+        return fn(arg);
+      }
+      // constants & variables
+      if(name === 'e')   return Math.E;
+      if(name === 'pi')  return Math.PI;
+      if(name === 'Ans') return calc.ans;
+      if(name === 'M')   return calc.mem;
+      if(calc.vars[name] !== undefined) return calc.vars[name];
+      throw new Error('Variabile sconosciuta: '+name);
+    }
+    throw new Error('Token inatteso: '+tk.v);
+  }
+
+  const result = parseExpr();
+  if(pos < tokens.length) throw new Error('Token extra: '+tokens[pos].v);
+  return result;
+}
+
+function doEvaluate(){
+  if(!calc.expr.trim()) return;
+  try {
+    const v = evalExpr(calc.expr);
+    if(!isFinite(v)) throw new Error('Risultato non finito');
+    calc.ans = v;
+    calc.result = formatNumber(v);
+    $('calcResult').classList.remove('error');
+  } catch(e){
+    calc.result = e.message;
+    $('calcResult').classList.add('error');
+  }
+  updateDisplay();
+}
+
+function formatNumber(v){
+  if(Number.isInteger(v) && Math.abs(v) < 1e15) return v.toString();
+  const abs = Math.abs(v);
+  if(abs !== 0 && (abs < 1e-4 || abs >= 1e12)) return v.toExponential(8).replace(/\.?0+e/,'e');
+  return parseFloat(v.toPrecision(12)).toString();
+}
+
+/* ---- Init ---- */
+renderCalcVars();
+updateDisplay();
+
+/* PWA-ish offline hint */
+window.addEventListener('beforeunload', () => { if(stream) stopCamera(); });
+
+</script>
+</body>
+</html>
