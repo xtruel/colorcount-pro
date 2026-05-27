@@ -33,7 +33,7 @@ header{display:flex;align-items:center;justify-content:space-between;padding:14p
 
 /* ---- CAMERA PAGE ---- */
 .viewport{position:relative;aspect-ratio:4/3;background:#000;overflow:hidden}
-.viewport video,.viewport canvas,.viewport img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}
+.viewport video,.viewport canvas,.viewport img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;image-rendering:auto;-webkit-transform:translateZ(0);transform:translateZ(0);backface-visibility:hidden}
 #overlayCanvas{pointer-events:none}
 .placeholder{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#444;font-size:14px;gap:8px}
 .placeholder svg{width:48px;height:48px;opacity:.5}
@@ -334,16 +334,65 @@ function setPlaceholderVisible(v){ placeholder.style.display = v ? 'flex' : 'non
 async function startCamera(){
   try{
     if(stream){ stopCamera(); return; }
-    stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: { ideal: 'environment' }, width:{ideal:1280}, height:{ideal:960} },
-      audio: false
-    });
+
+    // 1) Pick the highest-resolution back camera available
+    let deviceId = null;
+    try {
+      // Need a tiny prompt first so labels become available on most browsers
+      const probe = await navigator.mediaDevices.getUserMedia({video:true});
+      probe.getTracks().forEach(t=>t.stop());
+      const devs = await navigator.mediaDevices.enumerateDevices();
+      const cams = devs.filter(d=>d.kind==='videoinput');
+      // Prefer rear/environment camera, then the last one (often the highest-res tele/wide)
+      const back = cams.find(d => /back|rear|environment/i.test(d.label));
+      deviceId = (back || cams[cams.length-1] || cams[0])?.deviceId || null;
+    } catch(_) { /* fall through to facingMode */ }
+
+    const videoConstraints = {
+      width:  { ideal: 3840, min: 1280 },
+      height: { ideal: 2160, min: 720  },
+      frameRate: { ideal: 30 },
+      aspectRatio: { ideal: 16/9 },
+      resizeMode: 'none'
+    };
+    if (deviceId) videoConstraints.deviceId = { exact: deviceId };
+    else videoConstraints.facingMode = { ideal: 'environment' };
+
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ video: videoConstraints, audio:false });
+    } catch(_) {
+      // Fallback if 4K not supported
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode:{ideal:'environment'}, width:{ideal:1920}, height:{ideal:1080} },
+        audio:false
+      });
+    }
+
+    // 2) Try to push the track to its highest resolution + best focus/exposure
+    const track = stream.getVideoTracks()[0];
+    try {
+      const caps = track.getCapabilities ? track.getCapabilities() : {};
+      const adv = {};
+      if (caps.width  && caps.width.max)  adv.width  = caps.width.max;
+      if (caps.height && caps.height.max) adv.height = caps.height.max;
+      if (caps.focusMode && caps.focusMode.includes('continuous'))    adv.focusMode    = 'continuous';
+      if (caps.exposureMode && caps.exposureMode.includes('continuous')) adv.exposureMode = 'continuous';
+      if (caps.whiteBalanceMode && caps.whiteBalanceMode.includes('continuous')) adv.whiteBalanceMode = 'continuous';
+      if (Object.keys(adv).length) await track.applyConstraints({ advanced:[adv] });
+    } catch(_) {}
+
     video.srcObject = stream;
     video.style.display = 'block';
     setPlaceholderVisible(false);
     $('camBtn').textContent = '⏹ Stop Camera';
     $('snapBtn').disabled = false;
     lastImageSource = video;
+
+    // Show the real resolution we got so the user can verify
+    const settings = track.getSettings ? track.getSettings() : {};
+    if (settings.width && settings.height) {
+      toast(`Camera ${settings.width}×${settings.height}`, 1800);
+    }
   }catch(e){
     toast('Camera non disponibile: ' + e.message, 3000);
   }
