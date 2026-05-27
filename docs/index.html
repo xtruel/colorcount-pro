@@ -337,9 +337,9 @@ const COLORS = [
   {name:'yellow', label:'Giallo',  var:'Y', hex:'#fdd835', ranges:[[43,68]],          sMin:0.50, lMin:0.40, lMax:0.88},
   {name:'green',  label:'Verde',   var:'G', hex:'#43a047', ranges:[[69,165]],         sMin:0.38, lMin:0.20, lMax:0.78},
   {name:'cyan',   label:'Ciano',   var:'C', hex:'#00acc1', ranges:[[166,195]],        sMin:0.40, lMin:0.28, lMax:0.80},
-  {name:'blue',   label:'Blu',     var:'B', hex:'#1e88e5', ranges:[[196,250]],        sMin:0.45, lMin:0.30, lMax:0.78},
-  {name:'purple', label:'Viola',   var:'P', hex:'#8e24aa', ranges:[[251,310]],        sMin:0.38, lMin:0.25, lMax:0.75},
-  {name:'pink',   label:'Rosa',    var:'K', hex:'#ec407a', ranges:[[311,347]],        sMin:0.40, lMin:0.40, lMax:0.85},
+  {name:'blue',   label:'Blu',     var:'B', hex:'#1e88e5', ranges:[[196,245]],        sMin:0.45, lMin:0.30, lMax:0.78},
+  {name:'purple', label:'Viola',   var:'P', hex:'#8e24aa', ranges:[[246,285]],        sMin:0.38, lMin:0.22, lMax:0.70},
+  {name:'pink',   label:'Rosa',    var:'K', hex:'#ec407a', ranges:[[286,347]],        sMin:0.40, lMin:0.38, lMax:0.85},
   {name:'white',  label:'Bianco',  var:'W', hex:'#ffffff', ranges:[],                  sMin:0,    lMin:0.85, lMax:1.01, achromatic:'white'},
   {name:'black',  label:'Nero',    var:'N', hex:'#000000', ranges:[],                  sMin:0,    lMin:0,    lMax:0.18, achromatic:'black'}
 ];
@@ -576,6 +576,8 @@ function countObjects(labels, W, H, minSize, estimateGroups){
    cleaner image AND the analysis gets better color separation.
    ========================================================= */
 function enhanceImage(canvas){
+  // Hue-preserving contrast stretch on luminance only.
+  // No per-channel white-balance (would shift hues and corrupt classification).
   const ctx = canvas.getContext('2d', { willReadFrequently:true });
   const W = canvas.width, H = canvas.height;
   if(W < 4 || H < 4) return;
@@ -583,46 +585,35 @@ function enhanceImage(canvas){
   const data = img.data;
   const N = data.length >> 2;
 
-  // ----- Gray-world white balance (mild) -----
-  let sumR=0, sumG=0, sumB=0;
-  for(let i=0; i<data.length; i+=4){ sumR+=data[i]; sumG+=data[i+1]; sumB+=data[i+2]; }
-  const avgR=sumR/N, avgG=sumG/N, avgB=sumB/N;
-  const avg=(avgR+avgG+avgB)/3;
-  const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
-  const sR = clamp(avg/Math.max(1,avgR), 0.80, 1.25);
-  const sG = clamp(avg/Math.max(1,avgG), 0.80, 1.25);
-  const sB = clamp(avg/Math.max(1,avgB), 0.80, 1.25);
-
-  // ----- Auto-contrast: 1st/99th percentile per channel (after WB) -----
-  const histR=new Uint32Array(256), histG=new Uint32Array(256), histB=new Uint32Array(256);
+  // Build luminance histogram
+  const histL = new Uint32Array(256);
   for(let i=0; i<data.length; i+=4){
-    histR[Math.min(255, Math.round(data[i]   * sR))]++;
-    histG[Math.min(255, Math.round(data[i+1] * sG))]++;
-    histB[Math.min(255, Math.round(data[i+2] * sB))]++;
+    const l = (data[i]*0.299 + data[i+1]*0.587 + data[i+2]*0.114) | 0;
+    histL[l < 0 ? 0 : (l > 255 ? 255 : l)]++;
   }
-  function percent(hist, frac){
-    const target = N * frac;
-    let cum=0, lo=0, hi=255;
-    for(let v=0; v<256; v++){ cum+=hist[v]; if(cum>=target){ lo=v; break; } }
-    cum=0;
-    for(let v=255; v>=0; v--){ cum+=hist[v]; if(cum>=target){ hi=v; break; } }
-    return [lo, hi];
-  }
-  const [loR,hiR]=percent(histR, 0.004);
-  const [loG,hiG]=percent(histG, 0.004);
-  const [loB,hiB]=percent(histB, 0.004);
-  const rangeR = Math.max(40, hiR-loR);
-  const rangeG = Math.max(40, hiG-loG);
-  const rangeB = Math.max(40, hiB-loB);
+  // 0.5% / 99.5% percentiles
+  const cut = N * 0.005;
+  let cum=0, loL=0, hiL=255;
+  for(let v=0; v<256; v++){ cum+=histL[v]; if(cum>=cut){ loL=v; break; } }
+  cum=0;
+  for(let v=255; v>=0; v--){ cum+=histL[v]; if(cum>=cut){ hiL=v; break; } }
 
-  // Apply WB + stretch in one pass
+  const range = hiL - loL;
+  // Image already has good contrast: skip enhancement entirely
+  if(range >= 215) return;
+
+  const scale = 255 / Math.max(40, range);
+  const clamp=(v)=>v<0?0:(v>255?255:v);
   for(let i=0; i<data.length; i+=4){
-    const r = data[i]   * sR;
-    const g = data[i+1] * sG;
-    const b = data[i+2] * sB;
-    data[i]   = clamp((r - loR) * 255 / rangeR, 0, 255);
-    data[i+1] = clamp((g - loG) * 255 / rangeG, 0, 255);
-    data[i+2] = clamp((b - loB) * 255 / rangeB, 0, 255);
+    const r = data[i], g = data[i+1], b = data[i+2];
+    const l = r*0.299 + g*0.587 + b*0.114;
+    if(l < 1){ continue; }                       // leave pure black alone
+    const newL = (l - loL) * scale;
+    if(newL <= 0){ data[i]=data[i+1]=data[i+2]=0; continue; }
+    const ratio = newL / l;                      // multiplicative → preserves R:G:B ratio = preserves hue
+    data[i]   = clamp(r * ratio);
+    data[i+1] = clamp(g * ratio);
+    data[i+2] = clamp(b * ratio);
   }
   ctx.putImageData(img, 0, 0);
 }
