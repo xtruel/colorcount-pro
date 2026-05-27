@@ -4,11 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#f2f2f7">
+<meta name="color-scheme" content="light only">
 <meta name="description" content="Conta oggetti per colore dalla fotocamera + calcolatrice scientifica avanzata">
 <title>ColorCount Pro</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='30' cy='30' r='18' fill='%2343a047'/%3E%3Ccircle cx='70' cy='35' r='18' fill='%23e53935'/%3E%3Ccircle cx='35' cy='70' r='18' fill='%23fdd835'/%3E%3Ccircle cx='72' cy='72' r='18' fill='%231e88e5'/%3E%3C/svg%3E">
 <style>
 :root{
+  color-scheme: light;
   --bg:#f2f2f7;
   --card:#ffffff;
   --card-2:#fafafc;
@@ -30,7 +32,7 @@
   --gray-fill-2:rgba(118,118,128,0.20);
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--label);
+html,body{height:100%;overflow:hidden;background:#f2f2f7 !important;color:#000 !important;
   font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text","Segoe UI",Roboto,sans-serif;
   -webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;
   user-select:none;-webkit-user-select:none;letter-spacing:-0.01em}
@@ -261,6 +263,10 @@ input[type=range]::-moz-range-thumb{width:28px;height:28px;border-radius:50%;bac
         <label>Risoluzione analisi <span id="resVal">500 px</span></label>
         <input type="range" id="res" min="200" max="1500" step="50" value="500">
       </div>
+      <div class="slider-row">
+        <label>Unisci regioni vicine <span id="mergeVal">3</span></label>
+        <input type="range" id="merge" min="0" max="10" step="1" value="3">
+      </div>
     </div>
   </div>
 
@@ -329,8 +335,12 @@ const COLORS = [
   {name:'cyan',   label:'Ciano',   var:'C', hex:'#00acc1', ranges:[[166,195]],        sMin:0.40, lMin:0.28, lMax:0.80},
   {name:'blue',   label:'Blu',     var:'B', hex:'#1e88e5', ranges:[[196,250]],        sMin:0.45, lMin:0.30, lMax:0.78},
   {name:'purple', label:'Viola',   var:'P', hex:'#8e24aa', ranges:[[251,310]],        sMin:0.38, lMin:0.25, lMax:0.75},
-  {name:'pink',   label:'Rosa',    var:'K', hex:'#ec407a', ranges:[[311,347]],        sMin:0.40, lMin:0.40, lMax:0.85}
+  {name:'pink',   label:'Rosa',    var:'K', hex:'#ec407a', ranges:[[311,347]],        sMin:0.40, lMin:0.40, lMax:0.85},
+  {name:'white',  label:'Bianco',  var:'W', hex:'#ffffff', ranges:[],                  sMin:0,    lMin:0.85, lMax:1.01, achromatic:'white'},
+  {name:'black',  label:'Nero',    var:'N', hex:'#000000', ranges:[],                  sMin:0,    lMin:0,    lMax:0.18, achromatic:'black'}
 ];
+const WHITE_IDX = COLORS.findIndex(c=>c.name==='white');
+const BLACK_IDX = COLORS.findIndex(c=>c.name==='black');
 const COLOR_MAP = Object.fromEntries(COLORS.map(c=>[c.name,c]));
 
 function rgbToHsl(r,g,b){
@@ -350,12 +360,14 @@ function rgbToHsl(r,g,b){
 
 function classifyPixel(r,g,b, sens){
   const [h,s,l] = rgbToHsl(r,g,b);
-  // Reject blacks, near-whites, and weakly saturated pixels (skin, beige, gray, shadows)
-  if(l < 0.15) return -1;
-  if(l > 0.92 && s < 0.22) return -1;
-  if(s < 0.28 * sens) return -1;  // slider higher = stricter (matches per-color thresholds)
+  // Achromatic: white (very bright + low sat) and black (very dark)
+  if(l > 0.85 && s < 0.18) return WHITE_IDX;
+  if(l < 0.16) return BLACK_IDX;
+  // Reject weakly saturated pixels (skin, beige, gray, shadows)
+  if(s < 0.28 * sens) return -1;
   for(let i=0;i<COLORS.length;i++){
     const c = COLORS[i];
+    if(!c.ranges.length) continue;   // skip achromatic entries here
     if(s < c.sMin * sens) continue;
     if(l < c.lMin || l > c.lMax) continue;
     for(const [a,b2] of c.ranges){
@@ -493,6 +505,30 @@ function enhanceImage(canvas){
     data[i+2] = clamp((b - loB) * 255 / rangeB, 0, 255);
   }
   ctx.putImageData(img, 0, 0);
+}
+
+/* Morphological dilation on the label map — fills small gaps so that
+   a shape broken by thin overlays (text, outlines) merges into one component. */
+function dilateLabels(labels, W, H, iters){
+  if(!iters) return;
+  const tally = new Uint8Array(COLORS.length);
+  for(let it=0; it<iters; it++){
+    const src = new Int8Array(labels);
+    for(let y=0; y<H; y++){
+      for(let x=0; x<W; x++){
+        const i = y*W + x;
+        if(src[i] >= 0) continue;
+        tally.fill(0);
+        if(x>0)    { const v=src[i-1];   if(v>=0) tally[v]++; }
+        if(x<W-1)  { const v=src[i+1];   if(v>=0) tally[v]++; }
+        if(y>0)    { const v=src[i-W];   if(v>=0) tally[v]++; }
+        if(y<H-1)  { const v=src[i+W];   if(v>=0) tally[v]++; }
+        let best=-1, bc=0;
+        for(let c=0; c<COLORS.length; c++) if(tally[c]>bc){ bc=tally[c]; best=c; }
+        if(best>=0) labels[i] = best;
+      }
+    }
+  }
 }
 
 /* 3x3 box blur for noise reduction (kills single-pixel false positives) */
@@ -652,13 +688,14 @@ function updateSliderFill(el){
   const p = ((val - min) / (max - min)) * 100;
   el.style.setProperty('--p', p + '%');
 }
-['sens','minSize','res'].forEach(id => {
+['sens','minSize','res','merge'].forEach(id => {
   const el = $(id);
   updateSliderFill(el);
   el.addEventListener('input', e => {
     if(id==='sens') $('sensVal').textContent = (+e.target.value).toFixed(2);
     if(id==='minSize') $('minSizeVal').textContent = e.target.value + ' px';
     if(id==='res') $('resVal').textContent = e.target.value + ' px';
+    if(id==='merge') $('mergeVal').textContent = e.target.value;
     updateSliderFill(el);
   });
 });
@@ -726,6 +763,10 @@ function runAnalysis(){
   for(let i=0;i<W*H;i++){
     labels[i] = classifyPixel(data[i*4], data[i*4+1], data[i*4+2], sens);
   }
+
+  // ---- 4b) Morphological dilation: merge regions fragmented by thin overlays ----
+  const mergeIters = +$('merge').value;
+  dilateLabels(labels, W, H, mergeIters);
 
   // ---- 5) Connected components + centroids ----
   const { counts, mask, centroids } = countObjects(labels, W, H, minSize);
